@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Blog control · SHINCHAN.EXE</title>
+<style>
+:root {
+  --bg: #0c0a22; --surface: #16123d; --sunk: #201b57; --ink: #ece8ff; --muted: #9590cc; --edge: #2e2770;
+  --hot: #ff4fa8; --teal: #44e6ff;
+  color-scheme: dark;
+}
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.wrap { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+.row { display: flex; gap: 10px; align-items: center; justify-content: space-between; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; }
+.card { background: var(--surface); border: 1px solid var(--edge); border-radius: 14px; padding: 20px; margin-top: 16px; }
+label { display: block; font-size: 13px; color: var(--muted); margin: 14px 0 4px; }
+input[type=text], input[type=password], input[type=date], textarea {
+  width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--edge);
+  background: var(--bg); color: var(--ink); font: inherit;
+}
+textarea { min-height: 280px; resize: vertical; font-family: ui-monospace, Consolas, monospace; font-size: 14px; }
+button {
+  font: inherit; font-size: 15px; padding: 9px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--edge); background: var(--sunk); color: var(--ink);
+}
+button.primary { background: var(--hot); border-color: var(--hot); color: #fff; }
+button.danger { color: var(--hot); }
+:focus-visible { outline: 2px solid var(--hot); outline-offset: 2px; }
+.list { display: grid; gap: 8px; margin-top: 12px; }
+.item {
+  display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding: 12px 14px; border: 1px solid var(--edge); border-radius: 10px; background: var(--bg);
+}
+.item small { color: var(--muted); }
+.tag { font-size: 12px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--muted); margin-left: 6px; }
+.tag.on { background: var(--teal); border-color: var(--teal); color: #fff; }
+.msg { min-height: 1.5em; font-size: 14px; color: var(--muted); margin: 12px 0 0; }
+.msg.err { color: var(--hot); }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
+.check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--ink); }
+.empty { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="row">
+    <h1>Blog control</h1>
+    <button id="logoutBtn" type="button" hidden>Log out</button>
+  </div>
+  <p class="msg" id="msg" role="status"></p>
+
+  <section class="card" id="loginView" hidden>
+    <form id="loginForm">
+      <label for="pw">Admin password</label>
+      <input id="pw" type="password" autocomplete="current-password" required>
+      <div class="actions"><button class="primary" type="submit">Log in</button></div>
+    </form>
+  </section>
+
+  <section id="listView" hidden>
+    <div class="row">
+      <strong>Posts</strong>
+      <button class="primary" id="newBtn" type="button">New post</button>
+    </div>
+    <div class="list" id="list"></div>
+  </section>
+
+  <section class="card" id="editView" hidden>
+    <form id="postForm">
+      <input type="hidden" id="postId">
+      <label for="title">Title</label>
+      <input id="title" type="text" maxlength="120" required>
+      <label for="excerpt">Summary (shown on the card, max 300 characters)</label>
+      <input id="excerpt" type="text" maxlength="300">
+      <label for="date">Date</label>
+      <input id="date" type="date" required>
+      <label for="body">Body (plain text; leave a blank line between paragraphs)</label>
+      <textarea id="body" maxlength="20000" required></textarea>
+      <label class="check"><input id="published" type="checkbox"> Published (visible on the site)</label>
+      <div class="actions">
+        <button class="primary" type="submit">Save</button>
+        <button id="cancelBtn" type="button">Cancel</button>
+        <button id="deleteBtn" class="danger" type="button" hidden>Delete</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<script>
+(() => {
+  const $ = s => document.querySelector(s);
+  const views = ["loginView", "listView", "editView"];
+  let posts = [];
+
+  function show(view) {
+    views.forEach(id => { $("#" + id).hidden = id !== view; });
+  }
+  function msg(text, isErr = false) {
+    const m = $("#msg");
+    m.textContent = text || "";
+    m.classList.toggle("err", isErr);
+  }
+  function today() {
+    const d = new Date(Date.now() - new Date().getTimezoneOffset() * 60000);
+    return d.toISOString().slice(0, 10);
+  }
+
+  // Every request goes to the same origin and carries the HttpOnly session cookie.
+  async function api(path, options = {}) {
+    const init = { method: options.method || "GET", credentials: "same-origin", headers: {} };
+    if (options.body !== undefined) {
+      init.headers["Content-Type"] = "application/json";
+      init.body = JSON.stringify(options.body);
+    }
+    const res = await fetch(path, init);
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 401 && path !== "/api/login") {
+      showLogin();
+      msg("Session expired. Log in again.", true);
+      throw new Error("Session expired.");
+    }
+    if (!res.ok) throw new Error(data.error || `Request failed (${res.status}).`);
+    return data;
+  }
+
+  function showLogin() {
+    show("loginView");
+    $("#logoutBtn").hidden = true;
+    $("#pw").value = "";
+    $("#pw").focus();
+  }
+
+  async function showList() {
+    const data = await api("/api/admin/blogs");
+    posts = data.posts;
+    renderList();
+    show("listView");
+    $("#logoutBtn").hidden = false;
+    msg("");
+  }
+
+  function renderList() {
+    const list = $("#list");
+    list.replaceChildren();
+    if (!posts.length) {
+      const empty = document.createElement("p");
+      empty.className = "empty";
+      empty.textContent = "No posts yet. Click New post to write the first one.";
+      list.appendChild(empty);
+      return;
+    }
+    posts.forEach(p => {
+      const row = document.createElement("div");
+      row.className = "item";
+      const info = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = p.title;
+      const tag = document.createElement("span");
+      tag.className = "tag" + (p.published ? " on" : "");
+      tag.textContent = p.published ? "PUBLISHED" : "DRAFT";
+      const date = document.createElement("small");
+      date.textContent = p.date;
+      info.append(title, tag, document.createElement("br"), date);
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => openEditor(p));
+      row.append(info, edit);
+      list.appendChild(row);
+    });
+  }
+
+  function openEditor(p) {
+    $("#postId").value = p ? p.id : "";
+    $("#title").value = p ? p.title : "";
+    $("#excerpt").value = p ? p.excerpt : "";
+    $("#date").value = p ? p.date : today();
+    $("#body").value = p ? p.body : "";
+    $("#published").checked = p ? p.published : false;
+    $("#deleteBtn").hidden = !p;
+    show("editView");
+    msg("");
+    $("#title").focus();
+  }
+
+  $("#loginForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    try {
+      await api("/api/login", { method: "POST", body: { password: $("#pw").value } });
+      $("#pw").value = "";
+      await showList();
+    } catch (err) {
+      msg(err.message, true);
+    }
+  });
+
+  $("#logoutBtn").addEventListener("click", async () => {
+    await api("/api/logout", { method: "POST" }).catch(() => {});
+    showLogin();
+    msg("Logged out.");
+  });
+
+  $("#newBtn").addEventListener("click", () => openEditor(null));
+  $("#cancelBtn").addEventListener("click", () => showList().catch(err => msg(err.message, true)));
+
+  $("#postForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const id = $("#postId").value;
+    const payload = {
+      title: $("#title").value,
+      excerpt: $("#excerpt").value,
+      date: $("#date").value,
+      body: $("#body").value,
+      published: $("#published").checked,
+    };
+    try {
+      await api(id ? "/api/admin/blogs/" + id : "/api/admin/blogs", { method: id ? "PUT" : "POST", body: payload });
+      await showList();
+      msg("Saved.");
+    } catch (err) {
+      msg(err.message, true);
+    }
+  });
+
+  $("#deleteBtn").addEventListener("click", async () => {
+    const id = $("#postId").value;
+    const post = posts.find(p => p.id === id);
+    if (!post || !confirm(`Delete "${post.title}"? This cannot be undone.`)) return;
+    try {
+      await api("/api/admin/blogs/" + id, { method: "DELETE" });
+      await showList();
+      msg("Deleted.");
+    } catch (err) {
+      msg(err.message, true);
+    }
+  });
+
+  showList().catch(() => showLogin());
+})();
+</script>
+</body>
+</html>

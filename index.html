@@ -1,0 +1,1652 @@
+<title>SHINCHAN.EXE Remastered</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Instrument+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: bento-grid hero, ticker, game cartridges, keycap inventory and a stepping debugger. Clean modern grid, retro hardware details, game-like HUD. */
+:root {
+  --bg: #0c0a22;
+  --surface: #16123d;
+  --sunk: #201b57;
+  --ink: #ece8ff;
+  --muted: #9590cc;
+  --edge: #2e2770;
+  --hot: #ff4fa8;
+  --teal: #44e6ff;
+  --sun: #ffb627;
+  --violet: #b48cff;
+  --term: #0a0820;
+  --term-fg: #ece8ff;
+  --display: "Silkscreen", "Courier New", monospace;
+  --body: "Instrument Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --r: 14px;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  background-image: radial-gradient(var(--edge) 1px, transparent 1.2px);
+  background-size: 22px 22px;
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: 17px; line-height: 1.6;
+  transition: background-color .3s, color .3s;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; border-radius: 6px; }
+.wrap {
+  max-width: 1160px; margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* Top bar + HUD */
+.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; padding-block: 14px; }
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 16px;
+  background: color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--edge); border-radius: 999px;
+  padding: 7px 8px 7px 20px;
+  box-shadow: 0 8px 24px -16px rgba(0,0,0,.35);
+}
+.logo { font-family: var(--display); font-size: 15px; text-decoration: none; display: flex; align-items: center; gap: 10px; }
+.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--teal); box-shadow: 0 0 0 4px color-mix(in srgb, var(--teal) 22%, transparent); animation: pulse 2s ease-in-out infinite; }
+.bar nav { display: flex; flex-wrap: wrap; gap: 2px; }
+.bar nav a { font-size: 14px; font-weight: 500; text-decoration: none; padding: 6px 11px; border-radius: 999px; color: var(--muted); transition: background .15s, color .15s; }
+.bar nav a:hover, .bar nav a.here { background: var(--sunk); color: var(--ink); }
+.hudctl { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.score { font-family: var(--display); font-size: 12px; padding: 6px 10px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.score b { color: var(--ink); font-weight: 400; }
+.score.bump b { animation: bump .35s; display: inline-block; }
+.chip {
+  font-family: var(--display); font-size: 12px; cursor: pointer;
+  padding: 6px 11px; border-radius: 999px; border: 1px solid var(--edge); background: var(--surface);
+  display: inline-flex; align-items: center; gap: 6px; transition: background .15s;
+}
+.chip:hover { background: var(--sunk); }
+.chip svg { width: 12px; height: 12px; fill: var(--sun); }
+.chip[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+/* Section heads */
+section { padding-block: 72px 8px; scroll-margin-top: 80px; }
+.eyebrow { font-family: var(--display); font-size: 12px; letter-spacing: .08em; color: var(--hot); margin: 0 0 10px; }
+h2 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 4vw, 40px); line-height: 1.1; margin: 0 0 12px; text-wrap: balance; }
+.sub { color: var(--muted); max-width: 58ch; margin: 0 0 32px; }
+.tile { background: var(--surface); border: 1px solid var(--edge); border-radius: var(--r); }
+
+/* Tilt + glare */
+.tilt { position: relative; transform: perspective(900px) rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg)) translateY(var(--ty, 0px)); transition: transform .25s ease, box-shadow .25s ease; will-change: transform; }
+.tilt.live { transition: transform .06s linear, box-shadow .25s ease; }
+.glare { position: absolute; inset: 0; border-radius: inherit; pointer-events: none; opacity: 0; transition: opacity .25s;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 50%), rgba(255,255,255,.28), transparent 55%); mix-blend-mode: soft-light; }
+.tilt.live .glare { opacity: 1; }
+
+/* Hero bento */
+.bento { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 14px; padding-block: 18px 0; }
+.intro { grid-column: span 6; padding: clamp(24px, 4vw, 44px); display: flex; flex-direction: column; gap: 22px; overflow: hidden; }
+.intro .rings {
+  position: absolute; right: -60px; bottom: -60px; width: 240px; height: 240px; border-radius: 50%; pointer-events: none;
+  background: repeating-linear-gradient(-45deg, var(--hot) 0 10px, transparent 10px 20px);
+  opacity: .12; animation: spin 40s linear infinite;
+}
+.p1 { display: inline-flex; align-items: center; gap: 10px; font-family: var(--display); font-size: 12px; color: var(--muted); }
+.p1 span { background: var(--ink); color: var(--surface); padding: 3px 8px; border-radius: 6px; }
+h1 {
+  font-family: var(--display); font-weight: 700; margin: 0; cursor: default;
+  font-size: clamp(40px, 7vw, 82px); line-height: .95; letter-spacing: -.01em;
+  color: var(--ink);
+  text-shadow: 3px 3px 0 var(--hot), 6px 6px 0 var(--sun);
+}
+h1 em { font-style: normal; color: var(--hot); text-shadow: none; }
+h1:hover { animation: glitch .4s steps(2) 1; }
+.lede { font-size: clamp(18px, 2vw, 21px); max-width: 38ch; margin: 0; }
+.lede b { font-weight: 600; background: linear-gradient(transparent 62%, color-mix(in srgb, var(--sun) 55%, transparent) 62%); background-size: 0% 100%; background-repeat: no-repeat; animation: mark 1s .9s ease forwards; }
+.ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.key {
+  font-family: var(--display); font-size: 13px; text-decoration: none; cursor: pointer;
+  padding: 12px 18px 10px; border-radius: 10px;
+  background: var(--hot); color: #fff; border: 0;
+  box-shadow: 0 4px 0 color-mix(in srgb, var(--hot) 55%, #000);
+  transition: transform .08s, box-shadow .08s;
+}
+.key.ghost { background: var(--sunk); color: var(--ink); box-shadow: 0 4px 0 var(--edge); }
+.key:hover { transform: translateY(-1px); }
+.key:active { transform: translateY(4px); box-shadow: 0 0 0 transparent; }
+
+.window { grid-column: span 6; overflow: hidden; display: flex; flex-direction: column; background: var(--term); border-color: var(--term); color: var(--term-fg); }
+.titlebar {
+  display: flex; align-items: center; gap: 10px; padding: 9px 12px;
+  background: repeating-linear-gradient(to bottom, #2a2833 0 2px, #1d1c25 2px 4px);
+  font-family: var(--display); font-size: 11px; color: #c9c5d8;
+}
+.titlebar .box { width: 12px; height: 12px; border: 2px solid #c9c5d8; border-radius: 2px; flex: none; }
+.titlebar .t { flex: 1; text-align: center; background: #1d1c25; padding: 0 8px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.titlebar b { color: #2de0c0; font-weight: 400; }
+.window pre {
+  margin: 0; padding: 14px; overflow-x: auto; flex: 1; min-height: 220px;
+  font-family: var(--mono); font-size: 12px; line-height: 1.65; color: #7b7690;
+  background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,.025) 0 1px, transparent 1px 3px);
+}
+.boot { color: #2de0c0; }
+.boot .ok { color: #ffd35c; }
+.caret { display: inline-block; width: .6em; height: 1.1em; background: #2de0c0; vertical-align: -2px; animation: blink 1s steps(2, start) infinite; }
+#hex [data-i] { cursor: crosshair; border-radius: 2px; transition: background .1s, color .1s; }
+.off { color: #4f4b63; }
+.b { color: #e9e6f2; }
+.z { color: #48445a; }
+.mz { color: #0b0b0f; background: #ff5a36; }
+.lf { color: #0b0b0f; background: #2de0c0; }
+#hex .fld { background: #3a3550; color: #fff; }
+#hex .cur { color: #0b0b0f; background: #ffd35c; }
+.asc { color: #2de0c0; }
+.info { padding: 10px 14px 14px; border-top: 1px solid #23222c; font-family: var(--mono); font-size: 12px; color: #9c98ab; min-height: 64px; }
+.info b { color: #ffd35c; font-weight: 600; }
+.info em { font-style: normal; color: #2de0c0; }
+
+.mini { padding: 20px; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.mini .k { font-family: var(--display); font-size: 11px; color: var(--muted); }
+.mini .v { font-family: var(--display); font-size: clamp(20px, 2.4vw, 28px); line-height: 1.1; }
+.mini p { margin: 0; color: var(--muted); font-size: 15px; }
+.m1, .m2, .m3 { grid-column: span 4; }
+.m3 { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.m3 .k, .m3 p { color: color-mix(in srgb, var(--surface) 70%, transparent); }
+.m3 .v { color: var(--sun); }
+.certs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.certs span { font-family: var(--display); font-size: 12px; padding: 4px 9px; border-radius: 6px; background: var(--sunk); transition: transform .15s; }
+.certs span:hover { transform: translateY(-2px) rotate(-2deg); }
+.certs span.on { background: var(--teal); color: var(--bg); }
+.certs span.lock { background: transparent; border: 1px dashed var(--muted); color: var(--muted); }
+.typed::after { content: "_"; animation: blink 1s steps(2, start) infinite; }
+
+/* Ticker */
+.ticker { margin-top: 40px; overflow: hidden; border-block: 1px solid var(--edge); background: var(--ink); color: var(--surface); }
+.ticker .track { display: flex; width: max-content; animation: tick 40s linear infinite; }
+.ticker:hover .track { animation-play-state: paused; }
+.ticker span { font-family: var(--mono); font-size: 13px; padding: 10px 0; white-space: nowrap; }
+.ticker i { font-style: normal; color: var(--sun); padding-inline: 14px; }
+
+/* Player stats */
+.player { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 14px; }
+.card { padding: 22px; }
+.sprite { width: 100%; max-width: 100%; aspect-ratio: 1; image-rendering: pixelated; display: block; border-radius: 10px; background: var(--sunk); cursor: pointer; }
+.spritebox { position: relative; }
+.spritebox .shadow { position: absolute; left: 30%; right: 30%; bottom: 8%; height: 5%; border-radius: 50%; background: rgba(0,0,0,.2); pointer-events: none; }
+#sprite { animation: bob 2.4s ease-in-out infinite; }
+#sprite.jump { animation: jump .45s cubic-bezier(.3,1.6,.6,1); }
+.card dl { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 6px 16px; margin: 18px 0 0; font-size: 15px; }
+.card dt { font-family: var(--display); font-size: 11px; color: var(--muted); padding-top: 3px; }
+.card dd { margin: 0; }
+.stats { padding: 26px; display: grid; gap: 16px; align-content: start; }
+.stat { display: grid; grid-template-columns: minmax(0, 16ch) minmax(0, 1fr) 3ch; gap: 16px; align-items: center; font-size: 15px; font-weight: 500; border-radius: 8px; padding: 2px 4px; cursor: default; }
+.stat:hover { background: var(--sunk); }
+.seg { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+.seg i { height: 14px; border-radius: 3px; background: var(--edge); opacity: .5; }
+.seg i.on { background: var(--c); opacity: 1; }
+.stats.charge .seg i.on { animation: charge .35s both; }
+.stat b { font-family: var(--mono); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+.special { margin: 4px 0 0; padding: 14px 16px; border-radius: 10px; background: var(--sunk); font-size: 15px; }
+.special span { font-family: var(--display); font-size: 11px; color: var(--hot); display: block; }
+
+/* Cartridges */
+.carts { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 18px; }
+.cart {
+  padding: 28px 18px 18px; border-radius: 12px 12px 18px 18px; cursor: pointer; text-align: left;
+  background: var(--sunk); border: 1px solid var(--edge);
+  display: flex; flex-direction: column; gap: 14px; width: 100%;
+}
+.cart::before {
+  content: ""; position: absolute; top: 10px; left: 18px; right: 18px; height: 8px;
+  background: repeating-linear-gradient(90deg, var(--edge) 0 6px, transparent 6px 10px); border-radius: 2px;
+}
+.cart:hover { --ty: -6px; box-shadow: 0 18px 30px -18px rgba(0,0,0,.45); }
+.cart.played .label .w b::after { content: " ✓"; }
+.cart.inserting { animation: insert .5s ease-in forwards; }
+.label { border-radius: 8px; padding: 16px; background: var(--surface); border: 1px solid var(--edge); display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.label .w { display: flex; justify-content: space-between; font-family: var(--display); font-size: 11px; color: var(--muted); }
+.label .w b { font-weight: 400; color: #fff; background: var(--c); padding: 0 6px; border-radius: 4px; }
+.label h3 { font-family: var(--display); font-weight: 700; font-size: 20px; line-height: 1.15; margin: 0; }
+.label p { margin: 0; font-size: 15px; color: var(--muted); }
+.boss { font-size: 14px; font-weight: 600; color: var(--c); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips span { font-family: var(--mono); font-size: 11.5px; padding: 3px 8px; border-radius: 999px; border: 1px solid var(--edge); color: var(--muted); }
+.insert { font-family: var(--display); font-size: 11px; color: var(--muted); text-align: center; }
+.cart:hover .insert { color: var(--hot); }
+
+/* Console dialog */
+dialog { border: 0; padding: 0; background: transparent; max-width: min(660px, calc(100% - 32px)); width: 100%; color: var(--term-fg); }
+dialog::backdrop { background: rgba(8, 8, 12, .7); backdrop-filter: blur(3px); }
+.screen {
+  background: var(--term); border: 12px solid #2a2833; border-radius: 22px; overflow: hidden;
+  box-shadow: inset 0 0 60px rgba(45,224,192,.08), 0 30px 60px -20px rgba(0,0,0,.6);
+  background-image: repeating-linear-gradient(to bottom, rgba(255,255,255,.03) 0 1px, transparent 1px 3px);
+}
+dialog[open] .screen { animation: crt .45s cubic-bezier(.2,.9,.3,1); }
+.screen-in { padding: clamp(20px, 4vw, 32px); display: flex; flex-direction: column; gap: 14px; max-height: 78vh; overflow-y: auto; }
+.screen .w { font-family: var(--display); font-size: 11px; color: #ffd35c; }
+.screen h3 { font-family: var(--display); font-size: clamp(22px, 4vw, 30px); margin: 0; color: #fff; }
+.screen p { margin: 0; color: #c9c5d8; }
+.screen ol { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; counter-reset: s; }
+.screen li { counter-increment: s; display: grid; grid-template-columns: 34px minmax(0, 1fr); gap: 10px; font-size: 15px; color: #e9e6f2; animation: rise .4s both; }
+.screen li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono); color: #2de0c0; font-size: 13px; padding-top: 2px; }
+.screen .chips span { border-color: #2f2d3a; color: #9c98ab; }
+.screen .boss { color: #ff5a36; }
+.screen .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding-top: 6px; }
+.screen .foot small { font-family: var(--mono); color: #7b7690; }
+.ach-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.ach-list li { display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 12px; align-items: center; padding: 10px 12px; border-radius: 10px; background: #1a1921; animation: none; counter-increment: none; }
+.ach-list li::before { content: none; }
+.ach-list .ic { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 8px; background: #23222c; font-family: var(--display); color: #4f4b63; }
+.ach-list li.got .ic { background: #ffd35c; color: #15141b; }
+.ach-list b { display: block; font-family: var(--display); font-weight: 400; font-size: 13px; color: #fff; }
+.ach-list span { font-size: 14px; color: #9c98ab; }
+.ach-list em { font-style: normal; font-family: var(--mono); font-size: 12px; color: #4f4b63; }
+.ach-list li.got em { color: #2de0c0; }
+
+/* Keycap inventory */
+.equip { font-family: var(--mono); font-size: 14px; color: var(--muted); margin: -16px 0 18px; min-height: 1.6em; }
+.equip b { color: var(--hot); font-weight: 600; }
+.keys { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+.cap {
+  padding: 14px 14px 16px; border-radius: 12px; background: var(--surface); cursor: pointer; text-align: left;
+  border: 1px solid var(--edge); box-shadow: 0 5px 0 var(--edge);
+  display: flex; flex-direction: column; gap: 18px; min-height: 112px;
+  transition: transform .08s, box-shadow .08s, background .2s;
+}
+.cap:hover { transform: translateY(2px); box-shadow: 0 3px 0 var(--edge); }
+.cap.down { transform: translateY(5px); box-shadow: 0 0 0 var(--edge); background: var(--sunk); }
+.cap.used .g { background: var(--hot); color: #fff; }
+.cap .g { font-family: var(--display); font-size: 11px; color: var(--muted); align-self: flex-start; padding: 1px 6px; border-radius: 4px; background: var(--sunk); transition: background .2s, color .2s; }
+.cap .n { font-family: var(--display); font-size: 15px; line-height: 1.2; margin-top: auto; overflow-wrap: anywhere; }
+.cap .t { font-size: 13px; color: var(--muted); }
+
+/* Debugger */
+.dbg { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); overflow: hidden; background: var(--term); border-color: var(--term); color: var(--term-fg); }
+.dbg .col { min-width: 0; display: flex; flex-direction: column; }
+.dbg .col + .col { border-left: 1px solid #23222c; }
+.code { padding: 14px 0; overflow-x: auto; font-family: var(--mono); font-size: 13px; line-height: 1.75; }
+.ln { white-space: pre; padding: 0 18px 0 8px; display: flex; gap: 8px; border-left: 3px solid transparent; }
+.ln .bp { width: 10px; flex: none; display: grid; place-items: center; }
+.ln.ins { cursor: pointer; }
+.ln.ins:hover { background: rgba(255,255,255,.03); }
+.ln.ins .bp::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+.ln.ins:hover .bp::before { background: #4f4b63; }
+.ln.brk .bp::before { background: #ff5a36 !important; box-shadow: 0 0 8px #ff5a36; }
+.ln.pc { background: rgba(255,211,92,.12); border-left-color: #ffd35c; }
+.a { color: #4f4b63; }
+.m { color: #2de0c0; }
+.l { color: #ffd35c; }
+.c { color: #7b7690; font-style: italic; }
+.n { color: #ff5a36; }
+.code-help { padding: 0 18px 14px; font-size: 13px; color: #7b7690; }
+.play { padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+.play p { margin: 0; font-size: 15px; color: #c9c5d8; }
+.play code { font-family: var(--mono); color: #ffd35c; }
+.play label { font-family: var(--display); font-size: 11px; color: #9c98ab; }
+.play input {
+  width: 100%; padding: 12px 14px; border-radius: 10px;
+  font-family: var(--mono); font-size: 18px; letter-spacing: .3em;
+  background: #1a1921; color: #2de0c0; border: 1px solid #2f2d3a;
+}
+.play input:focus { border-color: #ffd35c; outline: none; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; }
+.play .key.ghost { background: #23222c; color: #e9e6f2; box-shadow: 0 4px 0 #0b0b0f; }
+.out { padding: 12px 14px; border-radius: 10px; background: #1a1921; font-family: var(--mono); font-size: 13px; color: #9c98ab; white-space: pre-wrap; min-height: 3.6em; }
+.out.win { color: #2de0c0; box-shadow: inset 0 0 0 1px #2de0c0; }
+.out.lose { color: #ff5a36; box-shadow: inset 0 0 0 1px #ff5a36; animation: shake .35s; }
+.regs { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 4px 16px; padding: 14px 20px; border-top: 1px solid #23222c; font-family: var(--mono); font-size: 12px; color: #7b7690; }
+.regs b { color: #e9e6f2; font-weight: 400; transition: color .3s; }
+.regs b.chg { color: #ffd35c; }
+.mem { padding: 4px 20px 18px; font-family: var(--mono); font-size: 12px; color: #7b7690; display: grid; gap: 6px; }
+.mem div { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+.mem span.lbl { width: 46px; }
+.mem i { font-style: normal; padding: 1px 4px; border-radius: 3px; background: #1a1921; color: #c9c5d8; }
+.mem i.hit { background: #ffd35c; color: #15141b; }
+.mem i.ok { color: #2de0c0; }
+.mem i.bad { color: #ff5a36; }
+.hint { font-size: 14px !important; color: #9c98ab !important; }
+
+/* Contact */
+.cta { padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 24px; align-items: center; background: var(--hot); border-color: var(--hot); color: #fff; overflow: hidden; }
+.cta h2 { color: #fff; margin: 0 0 10px; }
+.cta p { margin: 0; max-width: 52ch; color: rgba(255,255,255,.88); }
+.cta .count { font-family: var(--display); font-weight: 700; font-size: clamp(64px, 12vw, 140px); line-height: .8; color: rgba(255,255,255,.95); text-shadow: 5px 5px 0 rgba(0,0,0,.18); font-variant-numeric: tabular-nums; text-align: center; }
+.cta .count.over { font-size: clamp(28px, 5vw, 52px); line-height: 1; animation: blink .5s steps(2, start) 4; }
+.cta .key { background: #fff; color: #17161c; box-shadow: 0 4px 0 rgba(0,0,0,.25); margin-top: 22px; display: inline-block; }
+footer { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-block: 32px 48px; font-family: var(--display); font-size: 11px; color: var(--muted); }
+footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border: 1px solid var(--edge); border-radius: 4px; }
+
+[hidden] { display: none !important; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.sub code { font-family: var(--mono); font-size: .9em; padding: 1px 6px; border-radius: 5px; background: var(--sunk); }
+
+/* Arcade */
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.tab {
+  font-family: var(--display); font-size: 13px; cursor: pointer; padding: 10px 16px 9px; border-radius: 10px;
+  background: var(--surface); border: 1px solid var(--edge); box-shadow: 0 4px 0 var(--edge); transition: transform .08s, box-shadow .08s;
+}
+.tab:active { transform: translateY(3px); box-shadow: 0 1px 0 var(--edge); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); box-shadow: 0 4px 0 var(--hot); }
+.cab { background: var(--term); border-color: var(--term); color: var(--term-fg); overflow: hidden; }
+.cab-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 6px 16px; padding: 12px 16px; font-family: var(--display); font-size: 11px; color: #9c98ab; border-bottom: 1px solid #23222c; }
+.cab-head b { color: #ffd35c; font-weight: 400; font-variant-numeric: tabular-nums; }
+#rop { display: block; width: 100%; height: 280px; touch-action: manipulation; cursor: pointer; outline: none; }
+#rop:focus-visible { box-shadow: inset 0 0 0 2px #ffd35c; }
+.chain { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px; border-top: 1px solid #23222c; font-family: var(--mono); font-size: 12px; align-items: center; color: #7b7690; }
+.chain i { font-style: normal; padding: 3px 8px; border-radius: 6px; border: 1px dashed #2f2d3a; color: #4f4b63; transition: all .2s; }
+.chain i.got { border-style: solid; border-color: #2de0c0; color: #2de0c0; }
+.chain i.next { border-color: #ffd35c; color: #ffd35c; }
+.howto { margin: 0; padding: 0 16px 14px; font-size: 14px; color: #9c98ab; }
+.howto b { color: #ff5a36; font-family: var(--mono); }
+.q-meter { height: 4px; background: #23222c; }
+.q-meter i { display: block; height: 100%; width: 100%; background: #2de0c0; transition: width .3s, background .3s; }
+.q-wrap { position: relative; }
+.q-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; padding: 16px; }
+.proc {
+  min-height: 86px; border-radius: 10px; background: #1a1921; border: 1px solid #2f2d3a; padding: 10px; cursor: crosshair;
+  display: flex; flex-direction: column; gap: 2px; text-align: left; position: relative; overflow: hidden;
+  font-family: var(--mono); font-size: 12px; color: #c9c5d8; animation: spawn .22s ease-out; transition: background .15s, border-color .15s;
+}
+.proc:hover:not(:disabled) { border-color: #ffd35c; }
+.proc.empty { background: transparent; border-style: dashed; border-color: #23222c; cursor: default; animation: none; }
+.proc b { font-weight: 600; color: #e9e6f2; font-size: 13px; overflow-wrap: anywhere; }
+.proc small { color: #7b7690; font-size: 11px; overflow-wrap: anywhere; line-height: 1.35; }
+.proc .life { position: absolute; left: 0; bottom: 0; height: 3px; width: 100%; background: #4f4b63; transform-origin: left; animation: life var(--d) linear forwards; }
+.proc.killed-good { background: #12302b; border-color: #2de0c0; animation: zap .4s; }
+.proc.killed-bad { background: #3a1a14; border-color: #ff5a36; animation: shake .35s; }
+.q-over { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; padding: 24px; background: rgba(11,11,15,.9); }
+.q-over h3 { font-family: var(--display); font-size: clamp(20px, 3vw, 28px); margin: 0; color: #ffd35c; }
+.q-over p { color: #c9c5d8; max-width: 46ch; margin: 10px auto 18px; font-size: 15px; }
+.t-ok { color: #2de0c0; } .t-warn { color: #ffd35c; } .t-err { color: #ff5a36; } .t-dim { color: #7b7690; }
+
+/* Single dark theme now, so the light/dark toggle is hidden */
+#themeBtn { display: none; }
+
+/* Blog */
+.posts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
+.post { padding: 22px; display: flex; flex-direction: column; gap: 10px; text-align: left; cursor: pointer; width: 100%; color: inherit; font: inherit; }
+.post:hover { --ty: -4px; box-shadow: 0 18px 30px -20px rgba(0,0,0,.45); }
+.post time { font-family: var(--display); font-size: 11px; color: var(--hot); }
+.post h3 { font-family: var(--display); font-weight: 700; font-size: 19px; line-height: 1.2; margin: 0; overflow-wrap: anywhere; }
+.post p { margin: 0; color: var(--muted); font-size: 15px; overflow-wrap: anywhere; }
+.post .more { font-family: var(--display); font-size: 11px; color: var(--muted); margin-top: auto; }
+.post:hover .more { color: var(--hot); }
+.blog-note { font-family: var(--mono); font-size: 14px; color: var(--muted); margin: 0; }
+.post-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; color: #c9c5d8; max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+
+/* Patch chip */
+.patch { font-family: var(--mono); font-size: 11px; margin-left: 12px; padding: 0 6px; border-radius: 4px; border: 1px solid #4f4b63; color: #9c98ab; background: transparent; cursor: pointer; line-height: 1.6; align-self: center; }
+.patch:hover { border-color: #ffd35c; color: #ffd35c; }
+.patch.on { border-color: #ff5a36; color: #ff5a36; }
+
+/* Shell */
+.term { background: var(--term); border-color: var(--term); color: var(--term-fg); overflow: hidden; font-family: var(--mono); font-size: 14px; }
+.term-out { height: 320px; overflow-y: auto; padding: 16px; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; cursor: text; }
+.term-out a { color: #2de0c0; }
+.term-in { display: flex; gap: 10px; padding: 10px 16px 12px; border-top: 1px solid #23222c; align-items: center; }
+.term-in > span { color: #2de0c0; }
+.term-in input { flex: 1; min-width: 0; background: transparent; border: 0; color: #e9e6f2; font: inherit; outline: none; caret-color: #ffd35c; }
+.qcmds { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 16px; }
+.qcmds button { font-family: var(--mono); font-size: 12px; padding: 4px 10px; border-radius: 999px; background: #1a1921; border: 1px solid #2f2d3a; color: #9c98ab; cursor: pointer; }
+.qcmds button:hover { color: #ffd35c; border-color: #ffd35c; }
+
+@keyframes spawn { from { transform: scale(.85); opacity: 0; } }
+@keyframes life { to { transform: scaleX(0); } }
+@keyframes zap { 0% { transform: scale(1.06); filter: brightness(1.8); } }
+@media (max-width: 640px) {
+  .q-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 10px; }
+  .proc { min-height: 92px; padding: 8px; }
+  #rop { height: 240px; }
+}
+
+/* Toasts + confetti */
+.toasts { position: fixed; z-index: 70; right: calc(16px + env(safe-area-inset-right, 0px)); bottom: calc(16px + env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; gap: 10px; align-items: flex-end; pointer-events: none; max-width: calc(100% - 32px); }
+.toast {
+  display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 12px; align-items: center;
+  padding: 10px 16px 10px 10px; border-radius: 12px; background: #15141b; color: #e9e6f2;
+  box-shadow: 0 16px 30px -12px rgba(0,0,0,.5), inset 0 0 0 1px #2f2d3a;
+  animation: toastIn .45s cubic-bezier(.2,1.4,.4,1) both;
+}
+.toast.bye { animation: toastOut .3s ease-in forwards; }
+.toast .ic { width: 40px; height: 40px; border-radius: 8px; background: #ffd35c; color: #15141b; display: grid; place-items: center; font-family: var(--display); }
+.toast small { display: block; font-family: var(--display); font-size: 10px; color: #ffd35c; }
+.toast b { font-family: var(--display); font-weight: 400; font-size: 13px; }
+#fx { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 65; }
+
+.pop { animation: rise .55s cubic-bezier(.2,.9,.3,1) both; }
+
+@keyframes pulse { 50% { opacity: .35; } }
+@keyframes blink { to { visibility: hidden; } }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes tick { to { transform: translateX(-50%); } }
+@keyframes mark { to { background-size: 100% 100%; } }
+@keyframes bob { 50% { transform: translateY(-4px); } }
+@keyframes jump { 40% { transform: translateY(-22%) scale(1.04, .96); } 100% { transform: none; } }
+@keyframes charge { from { transform: scaleY(.2); filter: brightness(1.8); } }
+@keyframes rise { from { transform: translateY(16px); } }
+@keyframes insert { 30% { transform: translateY(-14px); } 100% { transform: translateY(60px) scale(.9); opacity: .2; } }
+@keyframes crt { 0% { transform: scale(.7, .004); filter: brightness(4); } 55% { transform: scale(1, .004); } 100% { transform: none; filter: none; } }
+@keyframes toastIn { from { transform: translateY(30px) scale(.9); opacity: 0; } }
+@keyframes toastOut { to { transform: translateX(120%); opacity: 0; } }
+@keyframes bump { 40% { transform: translateY(-4px); color: var(--hot); } }
+@keyframes shake { 25% { transform: translateX(-6px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
+@keyframes glitch {
+  0% { text-shadow: -3px 0 0 var(--teal), 3px 3px 0 var(--hot), 6px 6px 0 var(--sun); transform: translateX(2px); }
+  50% { text-shadow: 4px 0 0 var(--violet), 3px 3px 0 var(--hot), 6px 6px 0 var(--sun); transform: translateX(-2px) skewX(-4deg); }
+  100% { transform: none; }
+}
+
+@media (max-width: 900px) {
+  .intro, .window { grid-column: 1 / -1; }
+  .m1, .m2 { grid-column: span 6; }
+  .m3 { grid-column: 1 / -1; }
+  .player, .dbg { grid-template-columns: minmax(0, 1fr); }
+  .dbg .col + .col { border-left: 0; border-top: 1px solid #23222c; }
+  .player .card { max-width: 440px; }
+}
+@media (max-width: 640px) {
+  .m1, .m2 { grid-column: 1 / -1; }
+  .bar { border-radius: 18px; padding: 10px 12px; }
+  .bar nav { display: none; }
+  .score { padding-inline: 4px; }
+  .stat { grid-template-columns: minmax(0, 1fr) 3ch; }
+  .stat .seg { grid-column: 1 / -1; grid-row: 2; }
+  .cta { grid-template-columns: minmax(0, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .lede b { background-size: 100% 100%; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <div class="bar">
+      <a class="logo" href="#top"><span class="dot" aria-hidden="true"></span>SHINCHAN.EXE</a>
+      <nav aria-label="Sections">
+        <a href="#stages">Stages</a>
+        <a href="#arcade">Arcade</a>
+        <a href="#bonus">Crackme</a>
+        <a href="#shell">Shell</a>
+        <a href="#blog">Blog</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <div class="hudctl">
+        <span class="score" id="score">SCORE <b>000000</b></span>
+        <button class="chip" id="trophyBtn" type="button" aria-label="Achievements"><svg viewBox="0 0 8 8" aria-hidden="true"><path d="M1 0h6v1h1v2H7v1H6v1H5v1h1v2H2V6h1V5H2V4H1V3H0V1h1z"/></svg><span id="trophyCount">0/7</span></button>
+        <button class="chip" id="sfxBtn" type="button" aria-pressed="false">SFX</button>
+        <button class="chip" id="themeBtn" type="button">DARK</button>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main id="top">
+  <div class="wrap">
+    <div class="bento">
+      <div class="tile intro tilt">
+        <span class="rings" aria-hidden="true"></span>
+        <div class="p1"><span>P1</span> REVERSE ENGINEER · MALWARE ANALYST</div>
+        <h1 id="title" aria-label="SHINCHAN.exe"><span class="sc">SHIN</span><br><span class="sc">CHAN</span><em class="sc">.exe</em></h1>
+        <p class="lede">I take binaries apart to see how they really work: <b>Windows malware, loaders, C2 traffic</b> and the web APIs behind modern apps.</p>
+        <div class="ctas">
+          <a class="key" href="#stages">PRESS START</a>
+          <a class="key ghost" href="#bonus">PLAY CRACKME</a>
+        </div>
+      </div>
+
+      <div class="tile window" aria-label="Hex dump of the DOS header of shinchan.exe">
+        <div class="titlebar"><span class="box" aria-hidden="true"></span><span class="t">shinchan.exe · <b id="cursorOff">0x0000</b></span><span class="box" aria-hidden="true"></span></div>
+        <pre id="hex"></pre>
+        <div class="info" id="hexInfo" aria-live="polite">Hover any byte to decode the DOS header.</div>
+      </div>
+
+      <div class="tile mini m1 tilt">
+        <span class="k">NOW PLAYING</span>
+        <span class="v typed" id="nowPlaying">Bug bounty</span>
+        <p>Hunting auth, IDOR and API logic bugs on HackerOne.</p>
+      </div>
+      <div class="tile mini m2 tilt">
+        <span class="k">BADGES</span>
+        <div class="certs">
+          <span class="on">PNPT</span><span class="on">PJPT</span><span class="on">PMRP</span><span class="lock">OSED · in progress</span>
+        </div>
+        <p>TCM Security practical certs. OSED studied, exam not taken yet.</p>
+      </div>
+      <div class="tile mini m3 tilt">
+        <span class="k">HOME BASE</span>
+        <span class="v">Kali + isolated Windows VMs</span>
+        <p>Static first, then the debugger.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="ticker" aria-hidden="true"><div class="track" id="ticker"></div></div>
+
+  <section id="player">
+    <div class="wrap">
+      <p class="eyebrow">STAGE 01 · PLAYER SELECT</p>
+      <h2 class="sc-h">Character sheet</h2>
+      <p class="sub">Self-rated, out of 100. Click the sprite to make it jump.</p>
+      <div class="player">
+        <div class="tile card tilt">
+          <div class="spritebox"><canvas class="sprite" id="sprite" width="16" height="16" role="button" tabindex="0" aria-label="Player sprite, press to jump"></canvas><span class="shadow" aria-hidden="true"></span></div>
+          <dl>
+            <dt>CLASS</dt><dd>Reverse Engineer</dd>
+            <dt>GUILD</dt><dd>Student, independent researcher</dd>
+            <dt>QUEST</dt><dd>Bug bounty on HackerOne</dd>
+          </dl>
+        </div>
+        <div class="tile stats" id="stats">
+          <div class="special"><span>SPECIAL MOVE</span>Turning a packed sample into IOCs, YARA rules and a report someone can act on.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="stages">
+    <div class="wrap">
+      <p class="eyebrow">STAGE 02 · GAME LIBRARY</p>
+      <h2 class="sc-h">Pick a cartridge</h2>
+      <p class="sub">Four areas I work in. Insert a cartridge to see how I play it.</p>
+      <div class="carts" id="carts"></div>
+    </div>
+  </section>
+
+  <section id="inventory">
+    <div class="wrap">
+      <p class="eyebrow">STAGE 03 · INVENTORY</p>
+      <h2 class="sc-h">Mapped keys</h2>
+      <p class="sub">Click a key or press it on your keyboard: A, B, X, Y, L, R and the arrows.</p>
+      <p class="equip" id="equip" aria-live="polite">EQUIPPED: <b>nothing yet</b></p>
+      <div class="keys" id="keys"></div>
+    </div>
+  </section>
+
+  <section id="arcade">
+    <div class="wrap">
+      <p class="eyebrow">STAGE 04 · ARCADE</p>
+      <h2 class="sc-h">Two cabinets, one coin</h2>
+      <p class="sub">Small games built around the job. Build a ROP chain on the run, or triage a live process list before the infection spreads.</p>
+      <div class="tabs" role="tablist" aria-label="Games">
+        <button class="tab" role="tab" type="button" data-game="rop" aria-selected="true" aria-controls="game-rop">ROP RUNNER</button>
+        <button class="tab" role="tab" type="button" data-game="quar" aria-selected="false" aria-controls="game-quar">QUARANTINE</button>
+      </div>
+      <div class="tile cab" id="game-rop" role="tabpanel">
+        <div class="cab-head"><span>ROP RUNNER · stack overflow edition</span><span>BEST <b id="ropBest">0</b> · CHAINS <b id="ropChains">0</b></span></div>
+        <canvas id="rop" tabindex="0" aria-label="ROP Runner game. Press space or tap to jump."></canvas>
+        <div class="chain" id="chain"></div>
+        <p class="howto">Space, ↑ or tap to jump. Jump over <b>CC</b> breakpoints, stay low under stack canaries, and grab gadgets in chain order. Highlighted gadgets are the next one you need; a wrong one breaks the chain.</p>
+      </div>
+      <div class="tile cab" id="game-quar" role="tabpanel" hidden>
+        <div class="cab-head"><span>QUARANTINE · process triage</span><span>SCORE <b id="qScore">00000</b> · TIME <b id="qTime">45s</b> · INTEGRITY <b id="qInteg">100%</b></span></div>
+        <div class="q-meter"><i id="qBar"></i></div>
+        <div class="q-wrap">
+          <div class="q-grid" id="qgrid"></div>
+          <div class="q-over" id="qover">
+            <div>
+              <h3 id="qTitle">QUARANTINE</h3>
+              <p id="qMsg">Processes keep spawning. Kill the malicious ones before they spread: fake names, wrong parents, weird command lines. Kill something legit and the system takes damage.</p>
+              <button class="key" type="button" id="qStart">START ROUND</button>
+            </div>
+          </div>
+        </div>
+        <p class="howto" id="qlog">45 seconds. Survive with integrity above zero.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="bonus">
+    <div class="wrap">
+      <p class="eyebrow">BONUS ROUND</p>
+      <h2 class="sc-h">Crack the key</h2>
+      <p class="sub">Read the disassembly and recover the 8-byte key. Step through it like a debugger, set breakpoints, watch the registers.</p>
+      <div class="tile dbg">
+        <div class="col">
+          <div class="code" id="code" aria-label="Disassembly of check_key"></div>
+          <div class="code-help">Click an instruction to toggle a breakpoint. Click the bytes on the <code>jne</code> to patch it.</div>
+        </div>
+        <div class="col">
+          <form class="play" id="crackForm" autocomplete="off">
+            <p>Each input byte is XORed with <code>0x2A</code> and compared to <code>enc</code>.</p>
+            <label for="key">KEY</label>
+            <input id="key" name="key" maxlength="16" spellcheck="false" placeholder="________">
+            <div class="row">
+              <button class="key" type="submit">RUN</button>
+              <button class="key ghost" type="button" id="stepBtn">STEP</button>
+              <button class="key ghost" type="button" id="resetBtn">RESET</button>
+              <button class="key ghost" type="button" id="hintBtn">HINT</button>
+            </div>
+            <div class="out" id="out" role="status">Ready. RIP = 00401000</div>
+            <p class="hint" id="hint" hidden>XOR undoes itself: 0x64 ^ 0x2A = 0x4E, ASCII 'N'. Seven to go.</p>
+          </form>
+          <div class="regs" aria-label="Registers">
+            <span>RAX <b id="rRax">00000000</b></span>
+            <span>RCX <b id="rRcx">00000000</b></span>
+            <span>RIP <b id="rRip">00401000</b></span>
+            <span>ZF <b id="rZf">0</b> CF <b id="rCf">0</b></span>
+          </div>
+          <div class="mem" aria-label="Memory">
+            <div><span class="lbl">[rdi]</span><span id="memIn"></span></div>
+            <div><span class="lbl">enc</span><span id="memEnc"></span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="shell">
+    <div class="wrap">
+      <p class="eyebrow">STAGE 05 · SHELL</p>
+      <h2 class="sc-h">Drop into the lab</h2>
+      <p class="sub">A tiny shell for the curious. Try <code>help</code>, <code>strings shinchan.exe</code> or <code>sudo</code>.</p>
+      <div class="tile term">
+        <div class="titlebar"><span class="box" aria-hidden="true"></span><span class="t">shinchan@re-lab: ~</span><span class="box" aria-hidden="true"></span></div>
+        <div class="term-out" id="tOut" aria-live="polite"></div>
+        <form class="term-in" id="tForm" autocomplete="off"><span aria-hidden="true">$</span><label for="tIn" class="sr">Command</label><input id="tIn" spellcheck="false" autocapitalize="off" placeholder="type help"></form>
+        <div class="qcmds" id="qcmds"></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="blog">
+    <div class="wrap">
+      <p class="eyebrow">SIDE QUEST · BLOG</p>
+      <h2 class="sc-h">Field notes</h2>
+      <p class="sub">Write-ups from the lab: analysis walkthroughs, tooling notes and what I learned on bounty targets.</p>
+      <div class="posts" id="posts" aria-live="polite"><p class="blog-note">loading the log…</p></div>
+    </div>
+  </section>
+
+  <section id="contact">
+    <div class="wrap">
+      <div class="tile cta">
+        <div>
+          <p class="eyebrow" style="color:#fff;opacity:.8">CONTINUE?</p>
+          <h2>Insert coin to collaborate</h2>
+          <p>Open to research collaborations, malware write-up reviews and security roles. My bounty work lives on HackerOne.</p>
+          <a class="key" href="https://hackerone.com/shinchan54" target="_blank" rel="noopener">HACKERONE / shinchan54</a>
+        </div>
+        <div class="count" id="count" aria-hidden="true">9</div>
+      </div>
+      <footer>
+        <span>© 2026 SHINCHAN</span>
+        <span>Psst: <kbd>↑</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd><kbd>←</kbd><kbd>→</kbd><kbd>B</kbd><kbd>A</kbd></span>
+        <span>This program cannot be run in DOS mode.</span>
+      </footer>
+    </div>
+  </section>
+</main>
+
+<dialog id="console" aria-labelledby="conTitle">
+  <div class="screen"><div class="screen-in" id="conBody"></div></div>
+</dialog>
+<dialog id="achDlg" aria-labelledby="achTitle">
+  <div class="screen"><div class="screen-in">
+    <span class="w">SAVE FILE · SHINCHAN.EXE</span>
+    <h3 id="achTitle">Achievements</h3>
+    <ul class="ach-list" id="achList"></ul>
+    <div class="foot"><small id="achSummary"></small><button class="key" type="button" data-close>CLOSE</button></div>
+  </div></div>
+</dialog>
+<dialog id="blogDlg" aria-labelledby="blogTitle">
+  <div class="screen"><div class="screen-in">
+    <span class="w" id="blogMeta"></span>
+    <h3 id="blogTitle"></h3>
+    <div class="post-text" id="blogText"></div>
+    <div class="foot"><small>SHINCHAN.EXE · BLOG</small><button class="key" type="button" data-close>CLOSE</button></div>
+  </div></div>
+</dialog>
+<canvas id="fx" aria-hidden="true"></canvas>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+
+<script>
+(() => {
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fine = matchMedia("(pointer: fine)").matches;
+  const $ = s => document.querySelector(s);
+  const store = {
+    get(k, d) { try { const v = localStorage.getItem("shx:" + k); return v == null ? d : JSON.parse(v); } catch { return d; } },
+    set(k, v) { try { localStorage.setItem("shx:" + k, JSON.stringify(v)); } catch {} },
+  };
+  const hx = (n, w) => (n >>> 0).toString(16).toUpperCase().padStart(w, "0");
+
+  /* ---------- Sound ---------- */
+  let sfx = store.get("sfx", false), actx = null;
+  const sfxBtn = $("#sfxBtn");
+  function syncSfx() { sfxBtn.setAttribute("aria-pressed", String(sfx)); sfxBtn.textContent = sfx ? "SFX ON" : "SFX"; }
+  function tone(f, d = .07, type = "square", vol = .035, at = 0) {
+    if (!sfx) return;
+    try {
+      actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+      const t = actx.currentTime + at, o = actx.createOscillator(), g = actx.createGain();
+      o.type = type; o.frequency.setValueAtTime(f, t);
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(.0001, t + d);
+      o.connect(g).connect(actx.destination); o.start(t); o.stop(t + d + .02);
+    } catch {}
+  }
+  const arp = notes => notes.forEach((f, i) => tone(f, .1, "square", .035, i * .08));
+  sfxBtn.addEventListener("click", () => { sfx = !sfx; store.set("sfx", sfx); syncSfx(); if (sfx) arp([523, 659, 784]); });
+  syncSfx();
+
+  /* ---------- Theme ---------- */
+  const themeBtn = $("#themeBtn");
+  const isDark = () => { const t = document.documentElement.dataset.theme; return t ? t === "dark" : matchMedia("(prefers-color-scheme: dark)").matches; };
+  function syncTheme() { themeBtn.textContent = isDark() ? "LIGHT" : "DARK"; }
+  const savedTheme = store.get("theme", null);
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+  themeBtn.addEventListener("click", () => {
+    const next = isDark() ? "light" : "dark";
+    document.documentElement.dataset.theme = next; store.set("theme", next); syncTheme(); tone(isDark() ? 220 : 440, .08);
+  });
+  syncTheme();
+
+  /* ---------- Score + achievements ---------- */
+  const ACH = [
+    ["hex", "0x", "Header hacker", "Find e_lfanew in the hex dump."],
+    ["explore", "MAP", "Explorer", "Visit every stage of the page."],
+    ["carts", "CRT", "Collector", "Insert all four cartridges."],
+    ["keys", "KEY", "Key master", "Press all ten tool keys."],
+    ["step", "F7", "Single stepper", "Step the debugger all the way to ret."],
+    ["crack", "1UP", "Reverser", "Make check_key return 1."],
+    ["patch", "EB", "Patcher", "Patch the binary so a wrong key passes."],
+    ["rop", "ROP", "Shell popped", "Finish a full chain in ROP Runner."],
+    ["quar", "AV", "Incident responder", "Survive a full Quarantine round."],
+    ["sudo", "#", "Nice try", "Ask the shell for root."],
+    ["konami", "↑↑", "Cheat code", "You know the one."],
+  ];
+  let got = new Set(store.get("ach", []));
+  let score = store.get("score", 0), shown = score;
+  const scoreEl = $("#score"), scoreB = scoreEl.querySelector("b");
+  function drawScore() { scoreB.textContent = String(Math.round(shown)).padStart(6, "0"); }
+  function addScore(n) {
+    score += n; store.set("score", score);
+    scoreEl.classList.remove("bump"); void scoreEl.offsetWidth; scoreEl.classList.add("bump");
+    if (reduce) { shown = score; drawScore(); return; }
+    const from = shown, t0 = performance.now();
+    const step = t => { const k = Math.min(1, (t - t0) / 500); shown = from + (score - from) * k; drawScore(); if (k < 1) requestAnimationFrame(step); };
+    requestAnimationFrame(step);
+  }
+  drawScore();
+  function syncTrophies() { $("#trophyCount").textContent = `${got.size}/${ACH.length}`; }
+  function unlock(id) {
+    if (got.has(id)) return;
+    got.add(id); store.set("ach", [...got]); syncTrophies(); addScore(1000);
+    const a = ACH.find(x => x[0] === id);
+    const t = document.createElement("div");
+    t.className = "toast";
+    t.innerHTML = `<span class="ic">${a[1]}</span><div><small>ACHIEVEMENT UNLOCKED · +1000</small><b>${a[2]}</b></div>`;
+    $("#toasts").appendChild(t);
+    arp([659, 784, 988, 1319]);
+    setTimeout(() => { t.classList.add("bye"); setTimeout(() => t.remove(), 320); }, 3200);
+    if (got.size === ACH.length) setTimeout(() => { confetti(innerWidth / 2, innerHeight / 3, 160); }, 400);
+  }
+  syncTrophies();
+  const achDlg = $("#achDlg");
+  $("#trophyBtn").addEventListener("click", () => {
+    $("#achList").innerHTML = ACH.map(([id, ic, name, how]) =>
+      `<li class="${got.has(id) ? "got" : ""}"><span class="ic">${got.has(id) ? ic : "?"}</span><div><b>${name}</b><span>${how}</span></div><em>${got.has(id) ? "UNLOCKED" : "LOCKED"}</em></li>`).join("");
+    $("#achSummary").textContent = `${got.size} of ${ACH.length} unlocked · score ${String(score).padStart(6, "0")}`;
+    achDlg.showModal(); tone(880, .05);
+  });
+
+  // dialogs close on backdrop click or [data-close]
+  document.querySelectorAll("dialog").forEach(d => d.addEventListener("click", e => {
+    if (e.target === d || e.target.closest("[data-close]")) d.close();
+  }));
+
+  /* ---------- Confetti ---------- */
+  const fx = $("#fx"), fctx = fx.getContext("2d");
+  let parts = [], fxRunning = false;
+  function confetti(x, y, n = 90) {
+    if (reduce) return;
+    const cols = ["#ff5a36", "#2de0c0", "#ffd35c", "#8f78ff", "#f1eee6"];
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, v = 3 + Math.random() * 7;
+      parts.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 5, s: 4 + Math.random() * 5 | 0, c: cols[i % cols.length], life: 70 + Math.random() * 40 });
+    }
+    if (!fxRunning) { fxRunning = true; requestAnimationFrame(fxLoop); }
+  }
+  function fxLoop() {
+    fx.width = innerWidth; fx.height = innerHeight;
+    parts = parts.filter(p => p.life-- > 0);
+    for (const p of parts) {
+      p.vy += .28; p.vx *= .99; p.x += p.vx; p.y += p.vy;
+      fctx.globalAlpha = Math.min(1, p.life / 30); fctx.fillStyle = p.c; fctx.fillRect(p.x | 0, p.y | 0, p.s, p.s);
+    }
+    if (parts.length) requestAnimationFrame(fxLoop); else { fctx.clearRect(0, 0, fx.width, fx.height); fxRunning = false; }
+  }
+
+  /* ---------- Scramble text ---------- */
+  const GLYPHS = "ABCDEF0123456789#$%&@";
+  function scramble(el, dur = 700) {
+    const final = el.dataset.text || (el.dataset.text = el.textContent);
+    if (reduce) { el.textContent = final; return; }
+    const t0 = performance.now();
+    const step = t => {
+      const k = Math.min(1, (t - t0) / dur), done = Math.floor(final.length * k);
+      el.textContent = final.split("").map((ch, i) => i < done || ch === " " ? ch : GLYPHS[Math.random() * GLYPHS.length | 0]).join("");
+      if (k < 1) requestAnimationFrame(step); else el.textContent = final;
+    };
+    requestAnimationFrame(step);
+  }
+  const titleParts = [...document.querySelectorAll("#title .sc")];
+  titleParts.forEach((el, i) => setTimeout(() => scramble(el, 900), i * 120));
+  let titleCool = 0;
+  $("#title").addEventListener("mouseenter", () => {
+    if (Date.now() < titleCool) return; titleCool = Date.now() + 1200;
+    titleParts.forEach(el => scramble(el, 500)); tone(330, .05, "sawtooth", .02);
+  });
+
+  /* ---------- "Now playing" rotator ---------- */
+  const playing = ["Bug bounty", "Malware triage", "Loader unpacking", "YARA writing"];
+  let pi = 0;
+  if (!reduce) setInterval(() => { pi = (pi + 1) % playing.length; const el = $("#nowPlaying"); el.dataset.text = playing[pi]; scramble(el, 600); }, 3600);
+
+  /* ---------- Hex dump with boot sequence + field decoder ---------- */
+  const STUB = "This program cannot be run in DOS mode.\r\r\n$";
+  const bytes = [
+    0x4D,0x5A,0x90,0x00,0x03,0x00,0x00,0x00,0x04,0x00,0x00,0x00,0xFF,0xFF,0x00,0x00,
+    0xB8,0x00,0x00,0x00,0x00,0x00,0x00,0x00,0x40,0x00,0x00,0x00,0x00,0x00,0x00,0x00,
+    ...new Array(28).fill(0), 0x80,0x00,0x00,0x00,
+    0x0E,0x1F,0xBA,0x0E,0x00,0xB4,0x09,0xCD,0x21,0xB8,0x01,0x4C,0xCD,0x21,
+    ...[...STUB].map(c => c.charCodeAt(0)),
+  ];
+  while (bytes.length % 16) bytes.push(0);
+  const sEnd = 0x4E + STUB.length - 1;
+  const FIELDS = [
+    [0x00, 0x01, "e_magic", "WORD", "DOS signature. Every PE file starts with 'MZ'."],
+    [0x02, 0x03, "e_cblp", "WORD", "Bytes on the last page of the file."],
+    [0x04, 0x05, "e_cp", "WORD", "Pages in the file."],
+    [0x06, 0x07, "e_crlc", "WORD", "Number of relocations."],
+    [0x08, 0x09, "e_cparhdr", "WORD", "Header size in 16-byte paragraphs."],
+    [0x0A, 0x0B, "e_minalloc", "WORD", "Minimum extra paragraphs needed."],
+    [0x0C, 0x0D, "e_maxalloc", "WORD", "Maximum extra paragraphs needed."],
+    [0x0E, 0x0F, "e_ss", "WORD", "Initial SS value."],
+    [0x10, 0x11, "e_sp", "WORD", "Initial SP value."],
+    [0x12, 0x13, "e_csum", "WORD", "Checksum. Almost always zero."],
+    [0x14, 0x15, "e_ip", "WORD", "Initial IP value."],
+    [0x16, 0x17, "e_cs", "WORD", "Initial CS value."],
+    [0x18, 0x19, "e_lfarlc", "WORD", "File offset of the relocation table."],
+    [0x1A, 0x1B, "e_ovno", "WORD", "Overlay number."],
+    [0x1C, 0x23, "e_res", "WORD[4]", "Reserved."],
+    [0x24, 0x25, "e_oemid", "WORD", "OEM identifier."],
+    [0x26, 0x27, "e_oeminfo", "WORD", "OEM information."],
+    [0x28, 0x3B, "e_res2", "WORD[10]", "Reserved."],
+    [0x3C, 0x3F, "e_lfanew", "DWORD", "File offset of the PE header. The Windows loader jumps straight here."],
+    [0x40, 0x4D, "DOS stub", "16-bit code", "push cs · pop ds · mov dx,0Eh · mov ah,9 · int 21h · mov ax,4C01h · int 21h"],
+    [0x4E, sEnd, "stub message", "ASCII", "Printed by the stub if you run it under DOS."],
+  ];
+  const fieldAt = i => FIELDS.find(f => i >= f[0] && i <= f[1]) || [sEnd + 1, bytes.length - 1, "padding", "zeros", "Alignment up to the next structure."];
+  const hexEl = $("#hex"), offEl = $("#cursorOff"), infoEl = $("#hexInfo");
+  const baseCls = (i, b) => i < 2 ? "mz" : (i >= 0x3C && i <= 0x3F && i === 0x3C) ? "lf" : b ? "b" : "z";
+  let cells = [], cur = -1, hovering = false, autoTimer = null;
+
+  function renderDump() {
+    let out = "";
+    for (let r = 0; r < bytes.length; r += 16) {
+      out += `<span class="off">${hx(r, 8)}</span>  `;
+      let asc = "";
+      for (let i = r; i < r + 16; i++) {
+        out += `<span data-i="${i}" class="${baseCls(i, bytes[i])}">${hx(bytes[i], 2)}</span>` + (i === r + 7 ? "  " : " ");
+        const b = bytes[i], ch = b >= 0x20 && b < 0x7F ? String.fromCharCode(b) : ".";
+        asc += ch.replace(/&/, "&amp;").replace(/</, "&lt;");
+      }
+      out += ` <span class="asc">${asc}</span>\n`;
+    }
+    hexEl.innerHTML = out.trimEnd();
+    cells = [...hexEl.querySelectorAll("[data-i]")];
+  }
+  function setCursor(i) {
+    if (cur >= 0) cells[cur].classList.remove("cur");
+    cur = i; cells[i].classList.add("cur");
+    offEl.textContent = "0x" + hx(i, 4);
+  }
+  function describe(i) {
+    const [s, e, name, type, desc] = fieldAt(i);
+    cells.forEach((c, k) => c.classList.toggle("fld", k >= s && k <= e));
+    let val = "";
+    if (type === "WORD" || type === "DWORD") {
+      let v = 0; for (let k = e; k >= s; k--) v = v * 256 + bytes[k];
+      val = ` = <em>0x${hx(v, type === "WORD" ? 4 : 8)}</em>`;
+    } else if (name === "stub message") val = ` = <em>"${STUB.slice(0, 39)}"</em>`;
+    else if (name === "e_magic") val = "";
+    infoEl.innerHTML = `<b>+0x${hx(s, 2)} ${name}</b> · ${type}${name === "e_magic" ? ' = <em>"MZ"</em>' : val}<br>${desc}`;
+    if (name === "e_lfanew") unlock("hex");
+  }
+  function startAuto() {
+    if (reduce || autoTimer) return;
+    autoTimer = setInterval(() => { if (!hovering) setCursor((cur + 1) % bytes.length); }, 150);
+  }
+  hexEl.addEventListener("pointerover", e => {
+    const c = e.target.closest("[data-i]"); if (!c) return;
+    hovering = true; const i = +c.dataset.i; setCursor(i); describe(i);
+  });
+  hexEl.addEventListener("pointerleave", () => { hovering = false; });
+
+  const BOOT = [
+    ["> loader: open shinchan.exe", ""],
+    ["  check e_magic 'MZ' .......... ", "OK"],
+    ["  follow e_lfanew -> 0x80 ..... ", "OK"],
+    ["  'PE\\0\\0' machine AMD64 ...... ", "OK"],
+    ["  map .text .rdata .data ...... ", "OK"],
+    ["  resolve kernel32.dll ntdll.dll ", "OK"],
+    ["> entry point 0x00401000", ""],
+  ];
+  function boot() {
+    if (reduce) { renderDump(); return; }
+    let i = 0, html = "";
+    const tickBoot = () => {
+      if (i < BOOT.length) {
+        html += `<span class="boot">${BOOT[i][0]}<span class="ok">${BOOT[i][1]}</span></span>\n`;
+        hexEl.innerHTML = html + '<span class="caret"></span>'; i++;
+        setTimeout(tickBoot, 170);
+      } else setTimeout(() => { renderDump(); startAuto(); }, 380);
+    };
+    tickBoot();
+  }
+  boot();
+
+  /* ---------- Ticker ---------- */
+  const ops = ["push rbp", "mov rbp, rsp", "sub rsp, 0x28", "call [VirtualAlloc]", "xor eax, eax", "int3", "nop · nop · nop", "lea rcx, [rip+0x1F2C]", "call CreateRemoteThread", "test eax, eax", "jz short loc_401A2F", "rdtsc", "cpuid", "ret"];
+  const run = ops.map(o => `<span>${o}</span><i>◆</i>`).join("");
+  $("#ticker").innerHTML = run + run;
+
+  /* ---------- Tilt ---------- */
+  function addTilt(el) {
+    el.classList.add("tilt");
+    if (!el.querySelector(":scope > .glare")) { const g = document.createElement("span"); g.className = "glare"; el.appendChild(g); }
+    if (!fine || reduce) return;
+    el.addEventListener("pointermove", e => {
+      const r = el.getBoundingClientRect(), x = (e.clientX - r.left) / r.width, y = (e.clientY - r.top) / r.height;
+      el.classList.add("live");
+      el.style.setProperty("--ry", ((x - .5) * 8).toFixed(2) + "deg");
+      el.style.setProperty("--rx", ((.5 - y) * 8).toFixed(2) + "deg");
+      el.style.setProperty("--gx", (x * 100).toFixed(1) + "%");
+      el.style.setProperty("--gy", (y * 100).toFixed(1) + "%");
+    });
+    el.addEventListener("pointerleave", () => { el.classList.remove("live"); el.style.setProperty("--rx", "0deg"); el.style.setProperty("--ry", "0deg"); });
+  }
+  document.querySelectorAll(".tilt").forEach(addTilt);
+
+  /* ---------- Stats ---------- */
+  const STATS = [
+    ["Reverse engineering", 90, "var(--hot)"],
+    ["Malware analysis", 85, "var(--teal)"],
+    ["Windows internals", 78, "var(--sun)"],
+    ["Web & API security", 74, "var(--violet)"],
+    ["Exploit development", 60, "var(--hot)"],
+    ["Technical writing", 82, "var(--teal)"],
+  ];
+  const statsEl = $("#stats"), special = statsEl.firstElementChild;
+  STATS.forEach(([name, v, c], row) => {
+    const d = document.createElement("div");
+    d.className = "stat";
+    d.innerHTML = `<span>${name}</span><div class="seg" style="--c:${c}" aria-hidden="true">${
+      Array.from({ length: 10 }, (_, i) => `<i class="${i < Math.round(v / 10) ? "on" : ""}" style="animation-delay:${row * 80 + i * 40}ms"></i>`).join("")
+    }</div><b>${v}</b>`;
+    d.addEventListener("mouseenter", () => tone(300 + v * 6, .05, "triangle", .03));
+    statsEl.insertBefore(d, special);
+  });
+
+  /* ---------- Sprite ---------- */
+  const MAP = [
+    "................", ".....MMMMMM.....", "....MMMMMMMM....", "...MMKKKKKKMM...",
+    "...MKSSSSSSKM...", "...MKSCSSCSKM...", "...MKSSSSSSKM...", "...MMKSSSSKMM...",
+    "....MMMMMMMM....", "...MMMMMMMMMM...", "..MMMAMMMMAMMM..", "..MMMAAAAAAMMM..",
+    "..SS.MMMMMM.YYY.", ".....MM..MM.Y.Y.", ".....KK..KK.YYYG", "....KKK..KKK...G",
+  ];
+  const PAL = { M: "#ff5a36", K: "#17161c", S: "#ffcf9e", C: "#2de0c0", A: "#ffd35c", Y: "#2de0c0", G: "#9c98ab" };
+  const sprite = $("#sprite"), sctx = sprite.getContext("2d");
+  function drawSprite(blink) {
+    sctx.clearRect(0, 0, 16, 16);
+    MAP.forEach((row, y) => [...row].forEach((p, x) => {
+      const k = blink && p === "C" ? "K" : p;
+      if (PAL[k]) { sctx.fillStyle = PAL[k]; sctx.fillRect(x, y, 1, 1); }
+    }));
+  }
+  drawSprite(false);
+  if (!reduce) setInterval(() => { drawSprite(true); setTimeout(() => drawSprite(false), 140); }, 3800);
+  function jump() {
+    sprite.classList.remove("jump"); void sprite.offsetWidth; sprite.classList.add("jump");
+    tone(392, .06); tone(784, .08, "square", .03, .06); addScore(10);
+  }
+  sprite.addEventListener("click", jump);
+  sprite.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); jump(); } });
+  sprite.addEventListener("animationend", e => { if (e.animationName === "jump") sprite.classList.remove("jump"); });
+
+  /* ---------- Cartridges ---------- */
+  const CARTS = [
+    { w: "WORLD 1-1", tag: "STATIC", c: "var(--hot)", name: "PE Dungeon",
+      blurb: "Static triage of Windows executables: headers, sections, imports, entropy and packers.",
+      boss: "DLL side-loading chain", chips: ["PE format", "IAT", "Ghidra", "Cutter"],
+      steps: ["Hash the sample and check it against known intel before touching it.", "Walk the PE headers: machine, timestamps, section names, sizes and entropy.", "Read the import table for the story: VirtualAlloc, WriteProcessMemory, LoadLibrary.", "Pull strings and decode anything stacked or XORed.", "Open it in Ghidra, rename functions, and map the control flow to behaviour."] },
+    { w: "WORLD 1-2", tag: "DYNAMIC", c: "var(--teal)", name: "Loader Labyrinth",
+      blurb: "Peeling obfuscated PowerShell and VBScript loaders back to the real payload and its persistence.",
+      boss: "Process injection", chips: ["deobfuscation", "x64dbg", "Procmon"],
+      steps: ["Snapshot the VM and start Procmon and Process Explorer.", "Unwrap each obfuscation layer: base64, string concat, char codes, IEX.", "Break on the allocation and write APIs in x64dbg to catch the payload in memory.", "Dump the decoded stage and record the persistence it sets up.", "Revert, then write the steps up so someone else can repeat them."] },
+    { w: "WORLD 2-1", tag: "NETWORK", c: "var(--sun)", name: "C2 Skies",
+      blurb: "Reading beacon traffic over TCP, DNS and HTTP, then pulling network IOCs out of the capture.",
+      boss: "DNS tunnel", chips: ["Wireshark", "REMnux", "IOCs"],
+      steps: ["Capture traffic with a fake internet on REMnux so the sample talks.", "Find the beacon: interval, jitter, user agent and URI pattern.", "Decode payloads in DNS queries or HTTP bodies.", "Turn domains, IPs and patterns into IOCs and detection rules."] },
+    { w: "WORLD 3-1", tag: "WEB", c: "var(--violet)", name: "Bounty Arena",
+      blurb: "Auth, IDOR and API logic bugs on HackerOne programs, in scope and validated before reporting.",
+      boss: "Account takeover chain", chips: ["OAuth", "APIs", "Burp"],
+      steps: ["Read the program scope and rules before sending a single request.", "Map the app through Burp: every role, object ID and auth flow.", "Test access control with two accounts I own, swapping IDs and tokens.", "Prove real impact, then cut anything theoretical.", "Write a clear report with exact reproduction steps."] },
+  ];
+  const played = new Set(store.get("carts", []));
+  const cartsEl = $("#carts"), dlg = $("#console"), body = $("#conBody");
+  CARTS.forEach((c, i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cart" + (played.has(i) ? " played" : ""); b.style.setProperty("--c", c.c);
+    b.innerHTML = `<div class="label"><div class="w"><span>${c.w}</span><b>${c.tag}</b></div><h3>${c.name}</h3><p>${c.blurb}</p><span class="boss">Boss: ${c.boss}</span><div class="chips">${c.chips.map(x => `<span>${x}</span>`).join("")}</div></div><span class="insert">▼ INSERT CARTRIDGE</span>`;
+    b.addEventListener("click", () => insert(b, i));
+    cartsEl.appendChild(b); addTilt(b);
+  });
+  function insert(btn, i) {
+    tone(180, .12, "triangle", .05); tone(120, .15, "square", .03, .12);
+    const open = () => {
+      const c = CARTS[i];
+      body.innerHTML = `<span class="w">${c.w} · ${c.tag}</span><h3 id="conTitle">${c.name}</h3><p>${c.blurb}</p>
+        <ol>${c.steps.map((s, k) => `<li style="animation-delay:${200 + k * 90}ms">${s}</li>`).join("")}</ol>
+        <span class="boss">Boss: ${c.boss}</span><div class="chips">${c.chips.map(x => `<span>${x}</span>`).join("")}</div>
+        <div class="foot"><small>${played.size + (played.has(i) ? 0 : 1)}/4 cartridges played</small><button class="key" type="button" data-close>EJECT</button></div>`;
+      dlg.showModal(); btn.classList.remove("inserting");
+      if (!played.has(i)) { played.add(i); store.set("carts", [...played]); btn.classList.add("played"); addScore(100); }
+      if (played.size === CARTS.length) unlock("carts");
+    };
+    if (reduce) return open();
+    btn.classList.add("inserting"); setTimeout(open, 420);
+  }
+  dlg.addEventListener("close", () => tone(520, .06));
+
+  /* ---------- Keycaps ---------- */
+  const KEYS = [
+    ["a", "A", "Ghidra", "disassembler"], ["b", "B", "x64dbg", "debugger"], ["x", "X", "Cutter", "RE suite"],
+    ["y", "Y", "Procmon", "syscall tracing"], ["l", "L", "Process Explorer", "live processes"], ["r", "R", "Wireshark", "packets"],
+    ["arrowup", "↑", "REMnux", "analysis distro"], ["arrowdown", "↓", "YARA", "detection rules"],
+    ["arrowleft", "←", "Kali", "home base"], ["arrowright", "→", "Burp Suite", "web proxy"],
+  ];
+  const keysEl = $("#keys"), equip = $("#equip"), usedKeys = new Set(), capByKey = {};
+  KEYS.forEach(([k, g, n, t], i) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "cap";
+    b.innerHTML = `<span class="g">${g}</span><span class="n">${n}</span><span class="t">${t}</span>`;
+    b.addEventListener("click", () => press(k));
+    keysEl.appendChild(b); capByKey[k] = { el: b, n, t, i };
+  });
+  function press(k) {
+    const cap = capByKey[k]; if (!cap) return;
+    cap.el.classList.add("down", "used"); setTimeout(() => cap.el.classList.remove("down"), 140);
+    equip.innerHTML = `EQUIPPED: <b>${cap.n}</b> · ${cap.t}`;
+    tone(262 * Math.pow(2, cap.i / 12 * 2), .09);
+    if (!usedKeys.has(k)) { usedKeys.add(k); addScore(10); if (usedKeys.size === KEYS.length) unlock("keys"); }
+  }
+
+  /* ---------- Keyboard: tool keys + Konami ---------- */
+  const KONAMI = ["arrowup", "arrowup", "arrowdown", "arrowdown", "arrowleft", "arrowright", "arrowleft", "arrowright", "b", "a"];
+  let seq = [];
+  document.addEventListener("keydown", e => {
+    if (e.target.closest("input, textarea, dialog") || e.metaKey || e.ctrlKey || e.altKey) return;
+    const k = e.key.toLowerCase();
+    seq = [...seq, k].slice(-KONAMI.length);
+    if (seq.join() === KONAMI.join()) {
+      seq = []; unlock("konami"); confetti(innerWidth / 2, innerHeight / 2, 180);
+      document.body.animate?.([{ filter: "hue-rotate(0deg)" }, { filter: "hue-rotate(360deg)" }], { duration: 1200 });
+    }
+    if (capByKey[k]) {
+      const inv = $("#inventory").getBoundingClientRect();
+      if (inv.top < innerHeight && inv.bottom > 0) { if (k.startsWith("arrow")) e.preventDefault(); press(k); }
+    }
+  });
+
+  /* ---------- Debugger ---------- */
+  const PATCHES = [["jne", ".fail", "75 0D"], ["je", ".fail", "74 0D"], ["nop", "; nop", "90 90"]];
+  let patchMode = 0;
+  function drawIns(p, d) {
+    const [mn, op] = p.patchable ? PATCHES[patchMode] : [p.mn, p.op];
+    d.innerHTML = `<span class="bp"></span><span><span class="a">${hx(p.a, 8)}</span>  <span class="m">${mn.padEnd(6)}</span> ${hlOps(op)}${p.cmt ? `<span class="c">${" ".repeat(Math.max(2, 22 - op.length))}${p.cmt}</span>` : ""}</span>`
+      + (p.patchable ? `<button type="button" class="patch${patchMode ? " on" : ""}" aria-label="Patch instruction bytes">${PATCHES[patchMode][2]} ✎</button>` : "");
+    if (!p.patchable) return;
+    d.querySelector(".patch").addEventListener("click", e => {
+      e.stopPropagation();
+      patchMode = (patchMode + 1) % PATCHES.length;
+      drawIns(p, d); reset();
+      out.textContent = patchMode ? `Patched 0040100F → ${PATCHES[patchMode][2]} (${PATCHES[patchMode][0]}). Now RUN it.` : "Restored original bytes 75 0D (jne).";
+      tone(patchMode ? 300 : 500, .08, "sawtooth", .03);
+    });
+  }
+  const enc = [0x64, 0x1A, 0x7A, 0x75, 0x79, 0x66, 0x19, 0x6E];
+  const PROG = [
+    { lbl: "check_key:", cmt: "; rdi = input" },
+    { a: 0x401000, mn: "xor", op: "ecx, ecx", f: s => { s.rcx = 0; s.zf = 1; s.cf = 0; } },
+    { lbl: ".loop:" },
+    { a: 0x401002, mn: "movzx", op: "eax, byte [rdi+rcx]", f: s => { s.rax = s.inp[s.rcx] ?? 0; } },
+    { a: 0x401006, mn: "xor", op: "al, 0x2A", f: s => { const al = (s.rax ^ 0x2A) & 0xFF; s.rax = (s.rax & ~0xFF) | al; s.zf = +(al === 0); s.cf = 0; } },
+    { a: 0x401008, mn: "cmp", op: "al, byte [enc+rcx]", f: s => { const al = s.rax & 0xFF, m = enc[s.rcx]; s.zf = +(al === m); s.cf = +(al < m); } },
+    { a: 0x40100F, mn: "jne", op: ".fail", patchable: true, j: s => patchMode === 0 ? (s.zf ? null : ".fail:") : patchMode === 1 ? (s.zf ? ".fail:" : null) : null },
+    { a: 0x401011, mn: "inc", op: "ecx", f: s => { s.rcx++; s.zf = 0; } },
+    { a: 0x401013, mn: "cmp", op: "ecx, 8", f: s => { s.zf = +(s.rcx === 8); s.cf = +(s.rcx < 8); } },
+    { a: 0x401016, mn: "jb", op: ".loop", j: s => s.cf ? ".loop:" : null },
+    { a: 0x401018, mn: "mov", op: "eax, 1", cmt: "; win", f: s => { s.rax = 1; } },
+    { a: 0x40101D, mn: "ret", op: "", ret: true },
+    { lbl: ".fail:" },
+    { a: 0x40101E, mn: "xor", op: "eax, eax", cmt: "; game over", f: s => { s.rax = 0; s.zf = 1; s.cf = 0; } },
+    { a: 0x401020, mn: "ret", op: "", ret: true },
+    { blank: true },
+    { data: true },
+  ];
+  const codeEl = $("#code");
+  const hlOps = op => op.replace(/(\.\w+)|(0x[0-9A-F]+|\b\d+\b)/g, (m, l, n) => l ? `<span class="l">${l}</span>` : `<span class="n">${n}</span>`);
+  PROG.forEach((p, i) => {
+    const d = document.createElement("div");
+    d.className = "ln" + (p.a ? " ins" : "");
+    if (p.a) drawIns(p, d);
+    else if (p.lbl) d.innerHTML = `<span class="bp"></span><span><span class="l">${p.lbl}</span>${p.cmt ? `<span class="c">${" ".repeat(24)}${p.cmt}</span>` : ""}</span>`;
+    else if (p.data) d.innerHTML = `<span class="bp"></span><span><span class="l">enc:</span>  <span class="m">db</span> <span class="n">${enc.map(b => hx(b, 2)).join(" ")}</span></span>`;
+    else d.innerHTML = " ";
+    if (p.a) d.addEventListener("click", () => { p.bp = !p.bp; d.classList.toggle("brk", p.bp); tone(p.bp ? 700 : 500, .04); });
+    p.el = d; codeEl.appendChild(d);
+  });
+  const firstIns = PROG.findIndex(p => p.a);
+  const nextIns = i => { let k = i + 1; while (k < PROG.length && !PROG[k].a) k++; return k; };
+  const labelIdx = l => nextIns(PROG.findIndex(p => p.lbl === l));
+  const keyIn = $("#key"), out = $("#out");
+  let S, usedRun = false, running = null;
+  function reset() {
+    clearTimeout(running); running = null;
+    S = { pc: firstIns, rax: 0, rcx: 0, zf: 0, cf: 0, done: false, inp: [...keyIn.value].map(c => c.charCodeAt(0) & 0xFF) };
+    usedRun = false; out.className = "out"; out.textContent = "Ready. RIP = " + hx(PROG[S.pc].a, 8);
+    paint({});
+  }
+  function paint(prev) {
+    PROG.forEach((p, i) => p.el.classList.toggle("pc", i === S.pc && !S.done));
+    const regs = { rRax: hx(S.rax, 8), rRcx: hx(S.rcx, 8), rRip: hx(PROG[S.pc]?.a ?? 0, 8), rZf: S.zf, rCf: S.cf };
+    for (const [id, v] of Object.entries(regs)) {
+      const el = document.getElementById(id), sv = String(v);
+      el.classList.toggle("chg", prev[id] !== undefined && prev[id] !== sv); el.textContent = sv;
+    }
+    const inp = Array.from({ length: 8 }, (_, i) => S.inp[i]);
+    $("#memIn").innerHTML = inp.map((b, i) => {
+      const okb = b !== undefined && ((b ^ 0x2A) & 0xFF) === enc[i];
+      const cls = [i === S.rcx && !S.done ? "hit" : "", i < S.rcx || S.done ? (okb ? "ok" : (i <= S.rcx ? "bad" : "")) : ""].join(" ");
+      return `<i class="${cls}">${b === undefined ? "··" : hx(b, 2)}</i>`;
+    }).join("");
+    $("#memEnc").innerHTML = enc.map((b, i) => `<i class="${i === S.rcx && !S.done ? "hit" : ""}">${hx(b, 2)}</i>`).join("");
+  }
+  function snapshot() { return { rRax: hx(S.rax, 8), rRcx: hx(S.rcx, 8), rRip: hx(PROG[S.pc]?.a ?? 0, 8), rZf: String(S.zf), rCf: String(S.cf) }; }
+  function step() {
+    if (S.done) return false;
+    const prev = snapshot(), p = PROG[S.pc];
+    if (p.ret) { S.done = true; finish(); paint(prev); return false; }
+    if (p.f) p.f(S);
+    const tgt = p.j ? p.j(S) : null;
+    S.pc = tgt ? labelIdx(tgt) : nextIns(S.pc);
+    paint(prev);
+    return true;
+  }
+  function finish() {
+    const ok = S.rax === 1;
+    out.className = "out " + (ok ? "win" : "lose");
+    if (ok && patchMode) {
+      out.textContent = `ret  → eax = 1  ✔ accepted (patched to ${PATCHES[patchMode][2]})\nYou didn't find the key. You removed the check. That counts too.`;
+      arp([523, 659, 784, 1047]); unlock("patch");
+    } else if (ok) {
+      const extra = S.inp.length > 8 ? "\nNote: only the first 8 bytes are checked. Classic." : "";
+      out.textContent = "ret  → eax = 1  ✔ key accepted\nHigh score. NOP sleds forever." + extra;
+      arp([523, 659, 784, 1047]); unlock("crack");
+      const r = out.getBoundingClientRect(); confetti(r.left + r.width / 2, r.top, 120);
+      if (!usedRun) unlock("step");
+    } else {
+      out.textContent = `ret  → eax = 0  ✘ jne .fail taken at byte ${S.rcx}\nGame over. Insert coin and retry.`;
+      tone(196, .15, "sawtooth", .03); tone(147, .25, "sawtooth", .03, .14);
+      if (!usedRun) unlock("step");
+    }
+  }
+  $("#stepBtn").addEventListener("click", () => {
+    if (S.done) reset();
+    tone(880, .025, "square", .02);
+    step();
+    if (!S.done) out.textContent = `Stepped. RIP = ${hx(PROG[S.pc].a, 8)}`;
+  });
+  $("#resetBtn").addEventListener("click", () => { reset(); tone(440, .05); });
+  $("#crackForm").addEventListener("submit", e => {
+    e.preventDefault();
+    if (S.done || running == null) { if (S.done) reset(); }
+    usedRun = true;
+    const startPc = S.pc;
+    let n = 0;
+    const go = () => {
+      if (!step()) { running = null; return; }
+      n++;
+      if (PROG[S.pc].bp && S.pc !== startPc) { running = null; out.className = "out"; out.textContent = `Breakpoint hit at ${hx(PROG[S.pc].a, 8)}. STEP or RUN to continue.`; tone(990, .08); return; }
+      if (n > 300) { running = null; return; }
+      if (reduce) go(); else { tone(1200, .01, "square", .01); running = setTimeout(go, 45); }
+    };
+    clearTimeout(running); go();
+  });
+  keyIn.addEventListener("input", reset);
+  $("#hintBtn").addEventListener("click", () => { $("#hint").hidden = false; tone(660, .06); });
+  reset();
+
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+  const inView = el => { const r = el.getBoundingClientRect(); return r.top < innerHeight && r.bottom > 0; };
+
+  /* ---------- Arcade tabs ---------- */
+  const tabs = [...document.querySelectorAll(".tab")];
+  function showGame(id) {
+    tabs.forEach(t => {
+      const on = t.dataset.game === id;
+      t.setAttribute("aria-selected", String(on));
+      document.getElementById("game-" + t.dataset.game).hidden = !on;
+    });
+    if (id !== "rop") ropPause();
+    if (id !== "quar") qStop();
+    if (id === "rop") ropSize();
+  }
+  tabs.forEach(t => t.addEventListener("click", () => { showGame(t.dataset.game); tone(600, .04); }));
+
+  /* ---------- ROP Runner ---------- */
+  const cv = $("#rop"), g = cv.getContext("2d");
+  const CHAIN = ["pop rdi ; ret", '&"/bin/sh"', "ret", "call system"];
+  const JUNK = ["pop rax ; ret", "leave ; ret", "xor eax, eax ; ret", "add rsp, 8 ; ret", "syscall", "int3"];
+  const PX = 64, PS = 20;
+  let W = 600, H = 280, R, ropLast = 0, ropBest = store.get("ropBest", 0);
+  const GY = () => H - 40;
+  function ropNew(state) {
+    R = { state, h: 0, vy: 0, onGround: true, dist: 0, speed: 5, obs: [], gad: [], next: 260, nextG: 160, chain: 0, chains: 0, flash: 0, msg: "", msgC: "#2de0c0" };
+    renderChain(); ropHead();
+  }
+  function ropSize() {
+    const dpr = Math.min(2, devicePixelRatio || 1);
+    W = cv.clientWidth || 600; H = cv.clientHeight || 280;
+    cv.width = W * dpr; cv.height = H * dpr; g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    if (R && R.state !== "run") ropDraw();
+  }
+  function ropHead() { $("#ropBest").textContent = ropBest; $("#ropChains").textContent = R ? R.chains : 0; }
+  function renderChain() {
+    $("#chain").innerHTML = `<span>CHAIN</span>` + CHAIN.map((c, i) => `<i class="${i < R.chain ? "got" : i === R.chain ? "next" : ""}">${esc(c)}</i>`).join("");
+  }
+  function ropAct() {
+    if (R.state === "idle" || R.state === "dead") { ropNew("run"); ropLast = performance.now(); requestAnimationFrame(ropLoop); tone(523, .06); return; }
+    if (R.state === "paused") { R.state = "run"; ropLast = performance.now(); requestAnimationFrame(ropLoop); return; }
+    if (R.onGround) { R.vy = 11.6; R.onGround = false; tone(660, .05, "square", .025); }
+  }
+  function ropPause() { if (R && R.state === "run") { R.state = "paused"; ropDraw(); } }
+  function ropDie() {
+    R.state = "dead"; tone(196, .15, "sawtooth", .04); tone(98, .3, "sawtooth", .04, .12);
+    const sc = Math.floor(R.dist / 10);
+    if (sc > ropBest) { ropBest = sc; store.set("ropBest", ropBest); }
+    addScore(Math.floor(sc / 10)); ropHead(); ropDraw();
+  }
+  function ropTake(gd) {
+    gd.taken = true;
+    if (gd.text === CHAIN[R.chain]) {
+      R.chain++; tone(784 + R.chain * 120, .06);
+      if (R.chain === CHAIN.length) {
+        R.chain = 0; R.chains++; R.flash = 100; R.msg = "SHELL POPPED · uid=0(root)"; R.msgC = "#2de0c0";
+        addScore(500); unlock("rop"); arp([523, 784, 1047, 1568]);
+        const r = cv.getBoundingClientRect(); confetti(r.left + r.width / 2, r.top + 40, 80); ropHead();
+      }
+    } else {
+      if (R.chain) { R.flash = 60; R.msg = "CHAIN BROKEN"; R.msgC = "#ff5a36"; }
+      R.chain = 0; tone(150, .1, "square", .03);
+    }
+    renderChain();
+  }
+  const hit = (ax, aw, ab, ah, bx, bw, bb, bh) => ax + aw > bx && ax < bx + bw && ab > bb - bh && ab - ah < bb;
+  function ropLoop(t) {
+    if (R.state !== "run") return;
+    const k = Math.min(3, (t - ropLast) / 16.67); ropLast = t;
+    R.speed = Math.min(12, 5 + R.dist / 2500);
+    const dx = R.speed * k; R.dist += dx;
+    R.h += R.vy * k; R.vy -= .62 * k;
+    if (R.h <= 0) { R.h = 0; R.vy = 0; R.onGround = true; }
+    R.next -= dx;
+    if (R.next <= 0) {
+      if (R.dist > 1800 && Math.random() < .28) R.obs.push({ x: W + 20, w: 54, h: 16, fy: 46, fly: true });
+      else R.obs.push({ x: W + 20, w: 16 + Math.random() * 18 | 0, h: 22 + Math.random() * 22 | 0, fy: 0 });
+      R.next = 230 + Math.random() * 320 + R.speed * 18;
+    }
+    R.nextG -= dx;
+    if (R.nextG <= 0) {
+      const text = Math.random() < .55 ? CHAIN[R.chain] : JUNK[Math.random() * JUNK.length | 0];
+      g.font = "11px 'JetBrains Mono', monospace";
+      R.gad.push({ x: W + 20, w: g.measureText(text).width + 14, fy: [4, 62, 92][Math.random() * 3 | 0], text });
+      R.nextG = 300 + Math.random() * 380;
+    }
+    R.obs.forEach(o => o.x -= dx); R.obs = R.obs.filter(o => o.x + o.w > -10);
+    R.gad.forEach(o => o.x -= dx); R.gad = R.gad.filter(o => o.x + o.w > -10 && !o.taken);
+    const gy = GY(), pb = gy - R.h;
+    for (const o of R.obs) if (hit(PX + 3, PS - 6, pb, PS - 3, o.x, o.w, gy - o.fy, o.h)) return ropDie();
+    for (const gd of R.gad) if (hit(PX, PS, pb, PS, gd.x, gd.w, gy - gd.fy, 20)) ropTake(gd);
+    if (R.flash > 0) R.flash -= k;
+    ropDraw();
+    requestAnimationFrame(ropLoop);
+  }
+  function ropDraw() {
+    const gy = GY();
+    g.fillStyle = "#0b0b0f"; g.fillRect(0, 0, W, H);
+    g.strokeStyle = "rgba(255,255,255,.045)"; g.lineWidth = 1;
+    const off = (R.dist * .3) % 40;
+    for (let x = -off; x < W; x += 40) { g.beginPath(); g.moveTo((x | 0) + .5, 0); g.lineTo((x | 0) + .5, gy); g.stroke(); }
+    for (let y = gy - 40; y > 0; y -= 40) { g.beginPath(); g.moveTo(0, y + .5); g.lineTo(W, y + .5); g.stroke(); }
+    g.fillStyle = "#2f2d3a"; g.fillRect(0, gy, W, 2);
+    g.font = "10px 'JetBrains Mono', monospace"; g.fillStyle = "#4f4b63";
+    const o2 = R.dist % 120;
+    for (let x = -o2; x < W; x += 120) g.fillText("0x7FFE" + hx((Math.round((R.dist + x) / 120) * 16) & 0xFFFF, 4), x, gy + 20);
+    g.textAlign = "center";
+    for (const o of R.obs) {
+      const top = gy - o.fy - o.h;
+      g.fillStyle = o.fly ? "#ffd35c" : "#ff5a36"; g.fillRect(o.x | 0, top | 0, o.w, o.h);
+      g.fillStyle = "#0b0b0f"; g.font = "9px Silkscreen, monospace";
+      g.fillText(o.fly ? "CANARY" : "CC", o.x + o.w / 2, top + (o.fly ? 12 : 12));
+    }
+    g.font = "11px 'JetBrains Mono', monospace";
+    for (const gd of R.gad) {
+      const need = gd.text === CHAIN[R.chain], top = gy - gd.fy - 20;
+      g.fillStyle = need ? "#2de0c0" : "#2f2d3a"; g.fillRect(gd.x | 0, top | 0, gd.w, 20);
+      g.fillStyle = need ? "#0b0b0f" : "#c9c5d8"; g.fillText(gd.text, gd.x + gd.w / 2, top + 14);
+    }
+    g.textAlign = "left";
+    const pb = gy - R.h;
+    for (let i = 3; i >= 1; i--) { g.fillStyle = `rgba(255,90,54,${.06 * (4 - i)})`; g.fillRect(PX - i * 9, pb - PS + 3, PS - 6, PS - 6); }
+    g.fillStyle = "#ff5a36"; g.fillRect(PX, pb - PS, PS, PS);
+    g.fillStyle = "#0b0b0f"; g.fillRect(PX + 12, pb - PS + 5, 4, 4);
+    g.fillStyle = "#ffd35c"; g.font = "8px Silkscreen, monospace"; g.fillText("RIP", PX + 1, pb - PS - 4);
+    g.font = "12px Silkscreen, monospace"; g.fillStyle = "#9c98ab";
+    g.fillText("BYTES " + String(Math.floor(R.dist / 10)).padStart(6, "0"), 14, 22);
+    g.textAlign = "right"; g.fillText("SPEED " + R.speed.toFixed(1), W - 14, 22); g.textAlign = "center";
+    if (R.flash > 0 && R.state === "run") { g.fillStyle = R.msgC; g.font = "16px Silkscreen, monospace"; g.fillText(R.msg, W / 2, 56); }
+    const banner = (a, b, c) => {
+      g.fillStyle = "rgba(11,11,15,.78)"; g.fillRect(0, 0, W, H);
+      g.fillStyle = c; g.font = `${Math.min(30, W / 16) | 0}px Silkscreen, monospace`; g.fillText(a, W / 2, H / 2 - 8);
+      g.fillStyle = "#c9c5d8"; g.font = "12px Silkscreen, monospace"; g.fillText(b, W / 2, H / 2 + 22);
+    };
+    if (R.state === "idle") banner("ROP RUNNER", "SPACE / TAP TO START", "#ffd35c");
+    if (R.state === "paused") banner("PAUSED", "SPACE / TAP TO RESUME", "#ffd35c");
+    if (R.state === "dead") banner("SEGFAULT at 0x" + hx(0x401000 + Math.floor(R.dist), 8), `${Math.floor(R.dist / 10)} BYTES · SPACE / TAP TO RETRY`, "#ff5a36");
+    g.textAlign = "left";
+  }
+  ropNew("idle"); ropSize();
+  if (window.ResizeObserver) new ResizeObserver(() => ropSize()).observe(cv);
+  document.fonts?.ready.then(() => { if (R.state !== "run") ropDraw(); });
+  cv.addEventListener("pointerdown", e => { e.preventDefault(); cv.focus({ preventScroll: true }); ropAct(); });
+  document.addEventListener("keydown", e => {
+    const k = e.key.toLowerCase();
+    if (![" ", "arrowup", "w"].includes(k) || e.target.closest("input, textarea, button, a, dialog")) return;
+    if ($("#game-rop").hidden || !inView(cv)) return;
+    if (k === " " || R.state === "run" || document.activeElement === cv) { e.preventDefault(); ropAct(); }
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) ropPause(); });
+  new IntersectionObserver(es => es.forEach(en => { if (!en.isIntersecting) ropPause(); })).observe(cv);
+
+  /* ---------- Quarantine ---------- */
+  const QBEN = [
+    { n: "explorer.exe", p: "userinit.exe", a: "" }, { n: "svchost.exe", p: "services.exe", a: "-k netsvcs" },
+    { n: "lsass.exe", p: "wininit.exe", a: "" }, { n: "chrome.exe", p: "explorer.exe", a: "--type=renderer" },
+    { n: "notepad.exe", p: "explorer.exe", a: "todo.txt" }, { n: "Code.exe", p: "explorer.exe", a: "" },
+    { n: "spoolsv.exe", p: "services.exe", a: "" }, { n: "taskhostw.exe", p: "svchost.exe", a: "" },
+    { n: "winword.exe", p: "explorer.exe", a: "report.docx" }, { n: "OneDrive.exe", p: "explorer.exe", a: "/background" },
+  ];
+  const QEVIL = [
+    { n: "svch0st.exe", p: "explorer.exe", a: "", why: "zero instead of o" },
+    { n: "lsas.exe", p: "explorer.exe", a: "", why: "lsass with a missing s" },
+    { n: "powershell.exe", p: "excel.exe", a: "-enc JABzAD0A…", why: "Excel spawning encoded PowerShell" },
+    { n: "rundll32.exe", p: "winword.exe", a: "C:\\Users\\Public\\x.dll,#1", why: "Word launching rundll32" },
+    { n: "invoice.pdf.exe", p: "outlook.exe", a: "", why: "double extension" },
+    { n: "svchost.exe", p: "explorer.exe", a: "", why: "real svchost comes from services.exe" },
+    { n: "cmd.exe", p: "w3wp.exe", a: "/c whoami", why: "web server spawning a shell" },
+    { n: "mshta.exe", p: "winword.exe", a: "http://…/a.hta", why: "Office launching mshta" },
+    { n: "scvhost.exe", p: "services.exe", a: "", why: "letters swapped" },
+    { n: "certutil.exe", p: "cmd.exe", a: "-urlcache -f http://…", why: "certutil used as a downloader" },
+  ];
+  const qGrid = $("#qgrid"), qOver = $("#qover"), qLog = $("#qlog"), slots = [];
+  let Q = null;
+  for (let i = 0; i < 12; i++) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "proc empty"; b.disabled = true;
+    b.addEventListener("click", () => qKill(i));
+    qGrid.appendChild(b); slots.push({ el: b, p: null, t: null });
+  }
+  function qHead() {
+    $("#qScore").textContent = String(Q ? Q.score : 0).padStart(5, "0");
+    $("#qTime").textContent = (Q ? Q.left : 45) + "s";
+    const ig = Math.max(0, Q ? Q.integ : 100);
+    $("#qInteg").textContent = ig + "%";
+    const bar = $("#qBar"); bar.style.width = ig + "%"; bar.style.background = ig > 60 ? "#2de0c0" : ig > 30 ? "#ffd35c" : "#ff5a36";
+  }
+  function qStart() {
+    qStop(); qOver.hidden = true;
+    Q = { score: 0, integ: 100, combo: 1, left: 45, kills: 0 };
+    qLog.textContent = "Kill the malicious processes. Leave the legit ones alone.";
+    Q.clock = setInterval(() => { Q.left--; qHead(); if (Q.left <= 0) qEnd(true); }, 1000);
+    qSpawnLoop(); qHead(); tone(523, .06);
+  }
+  function qSpawnLoop() { if (!Q) return; qSpawn(); Q.spawnT = setTimeout(qSpawnLoop, Math.max(380, 760 - (45 - Q.left) * 9)); }
+  function qSpawn(forceEvil) {
+    const empty = slots.map((s, i) => s.p ? -1 : i).filter(i => i >= 0);
+    if (!empty.length || !Q) return;
+    const i = empty[Math.random() * empty.length | 0], evil = forceEvil || Math.random() < .42;
+    const src = evil ? QEVIL : QBEN, p = { ...src[Math.random() * src.length | 0], evil, pid: 1000 + (Math.random() * 8000 | 0) * 4 };
+    const life = evil ? Math.max(2600, 4400 - (45 - Q.left) * 30) : 2600 + Math.random() * 2400;
+    const s = slots[i];
+    s.p = p; s.el.disabled = false; s.el.className = "proc"; s.el.style.setProperty("--d", life + "ms");
+    s.el.innerHTML = `<b>${esc(p.n)}</b><small>PID ${p.pid} ← ${esc(p.p)}</small>${p.a ? `<small>${esc(p.a)}</small>` : ""}<span class="life"></span>`;
+    s.t = setTimeout(() => qExpire(i), life);
+  }
+  function qClear(i, cls) {
+    const s = slots[i];
+    clearTimeout(s.t); s.p = null; s.el.disabled = true;
+    const blank = () => { if (!s.p) { s.el.className = "proc empty"; s.el.innerHTML = ""; } };
+    if (cls) { s.el.classList.add(cls); setTimeout(blank, 420); } else blank();
+  }
+  function qExpire(i) {
+    const p = slots[i].p; if (!Q || !p) return;
+    qClear(i);
+    if (!p.evil) return;
+    Q.integ -= 12; Q.combo = 1;
+    qLog.innerHTML = `<span class="t-err">✘ ${esc(p.n)} spread.</span> Missed it: ${esc(p.why)}.`;
+    tone(150, .15, "sawtooth", .03); qSpawn(true); qHead();
+    if (Q.integ <= 0) qEnd(false);
+  }
+  function qKill(i) {
+    const p = slots[i].p; if (!Q || !p) return;
+    if (p.evil) {
+      Q.score += 100 * Q.combo; Q.kills++;
+      qLog.innerHTML = `<span class="t-ok">✔ killed ${esc(p.n)}</span> · ${esc(p.why)} · combo x${Q.combo}`;
+      Q.combo = Math.min(5, Q.combo + 1); tone(700 + Q.combo * 80, .05); qClear(i, "killed-good");
+    } else {
+      Q.integ -= 15; Q.combo = 1;
+      qLog.innerHTML = `<span class="t-err">✘ ${esc(p.n)} was legit</span> (parent ${esc(p.p)}). Integrity −15.`;
+      tone(196, .12, "sawtooth", .03); qClear(i, "killed-bad");
+    }
+    qHead();
+    if (Q.integ <= 0) qEnd(false);
+  }
+  function qEnd(survived) {
+    if (!Q) return;
+    const q = Q; qStop();
+    $("#qTitle").textContent = survived ? "CONTAINED" : "SYSTEM COMPROMISED";
+    $("#qMsg").textContent = survived
+      ? `Score ${q.score} · ${q.kills} threats killed · integrity ${Math.max(0, q.integ)}%. Nice triage.`
+      : `Integrity hit zero after ${q.kills} kills. Check the parent process and the command line, not just the name.`;
+    $("#qStart").textContent = "PLAY AGAIN";
+    $("#qScore").textContent = String(q.score).padStart(5, "0");
+    addScore(Math.floor(q.score / 10));
+    if (survived) { unlock("quar"); arp([523, 659, 784]); } else { tone(130, .4, "sawtooth", .04); }
+  }
+  function qStop() {
+    if (Q) { clearInterval(Q.clock); clearTimeout(Q.spawnT); }
+    Q = null; qOver.hidden = false;
+    slots.forEach(s => { clearTimeout(s.t); s.p = null; s.el.disabled = true; s.el.className = "proc empty"; s.el.innerHTML = ""; });
+  }
+  $("#qStart").addEventListener("click", qStart);
+  qHead();
+
+  /* ---------- Shell ---------- */
+  const tOut = $("#tOut"), tIn = $("#tIn"), hist = [];
+  let hIdx = 0;
+  const say = html => { const d = document.createElement("div"); d.innerHTML = html; tOut.appendChild(d); tOut.scrollTop = tOut.scrollHeight; };
+  const FILES = { "readme.txt": "Reverse engineer and malware analyst. I like taking binaries apart,\nwriting up what I find, and hunting bugs on HackerOne.", "flag.txt": "flag{y0u_ran_ls_b3fore_cat}" };
+  const CMDS = {
+    help: () => `<span class="t-warn">available commands</span>
+  whoami · certs · tools · ls · cat &lt;file&gt;
+  file · strings · yara        <span class="t-dim">(try them on shinchan.exe)</span>
+  play rop · play quarantine
+  score · achievements · theme · sfx
+  contact · history · clear`,
+    whoami: () => "shinchan · reverse engineer · malware analyst · bug bounty hunter",
+    certs: () => `<span class="t-ok">✔ PNPT</span>  <span class="t-ok">✔ PJPT</span>  <span class="t-ok">✔ PMRP</span>  <span class="t-warn">… OSED (in progress)</span>`,
+    tools: () => KEYS.map(k => `  [${k[1]}] ${k[2].padEnd(17)} <span class="t-dim">${k[3]}</span>`).join("\n"),
+    ls: a => a[0] === "writeups/" || a[0] === "writeups" ? "<span class=\"t-dim\">(empty for now · write-ups coming soon)</span>" : `shinchan.exe  readme.txt  flag.txt  <span class="t-warn">writeups/</span>`,
+    cat: a => !a[0] ? "cat: missing file operand" : FILES[a[0]] ? esc(FILES[a[0]]) : a[0] === "shinchan.exe" ? "<span class=\"t-dim\">MZ\u2400\u2400\u2400… binary garbage. Try <b>strings shinchan.exe</b>.</span>" : `cat: ${esc(a[0])}: No such file or directory`,
+    file: a => a[0] === "shinchan.exe" ? "shinchan.exe: PE32+ executable (console) x86-64, for MS Windows" : a[0] ? `${esc(a[0])}: ASCII text` : "usage: file &lt;file&gt;",
+    strings: a => a[0] !== "shinchan.exe" ? "usage: strings shinchan.exe" : `!This program cannot be run in DOS mode.
+.text
+.rdata
+.data
+KERNEL32.dll
+VirtualAlloc
+GetProcAddress
+LoadLibraryA
+check_key
+<span class="t-dim">enc is XOR-encoded, so the key isn't here. Nice try though.</span>`,
+    yara: a => `<span class="t-warn">rule</span> shinchan_crackme {
+  meta:   author = "shinchan"
+  strings:
+    $mz  = { 4D 5A }
+    $xor = { 34 2A }                   <span class="t-dim">// xor al, 0x2A</span>
+    $enc = { 64 1A 7A 75 79 66 19 6E }
+  condition:
+    $mz at 0 and $xor and $enc
+}
+<span class="t-ok">shinchan_crackme ${a[0] ? esc(a[0]) : "shinchan.exe"}</span>`,
+    play: a => {
+      const id = a[0] === "quarantine" || a[0] === "quar" ? "quar" : a[0] === "rop" ? "rop" : null;
+      if (!id) return "usage: play rop | play quarantine";
+      showGame(id); document.getElementById("arcade").scrollIntoView({ behavior: reduce ? "auto" : "smooth" });
+      return `loading cartridge <span class="t-warn">${id === "rop" ? "ROP RUNNER" : "QUARANTINE"}</span>…`;
+    },
+    score: () => `score ${String(score).padStart(6, "0")} · ROP best ${ropBest} bytes`,
+    achievements: () => ACH.map(([id, , n]) => `  ${got.has(id) ? '<span class="t-ok">■</span>' : '<span class="t-dim">□</span>'} ${n}`).join("\n") + `\n${got.size}/${ACH.length} unlocked`,
+    theme: () => { themeBtn.click(); return `theme → ${isDark() ? "dark" : "light"}`; },
+    sfx: () => { sfxBtn.click(); return `sfx → ${sfx ? "on" : "off"}`; },
+    contact: () => `HackerOne: <a href="https://hackerone.com/shinchan54" target="_blank" rel="noopener">hackerone.com/shinchan54</a>`,
+    history: () => hist.map((h, i) => `  ${String(i + 1).padStart(3)}  ${esc(h)}`).join("\n") || "(empty)",
+    echo: a => esc(a.join(" ")),
+    date: () => new Date().toString(),
+    sudo: () => { unlock("sudo"); return '<span class="t-err">shinchan is not in the sudoers file. This incident will be reported.</span>'; },
+    rm: a => a.includes("-rf") ? "nice try. this lab is snapshotted." : "rm: permission denied",
+    exit: () => "there is no exit. only <b>play rop</b>.",
+    cheat: () => "↑ ↑ ↓ ↓ ← → ← → B A",
+    xxd: () => { window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" }); return "jumped to the hex view."; },
+    clear: () => { tOut.innerHTML = ""; return null; },
+  };
+  CMDS.hexdump = CMDS.xxd;
+  function runCmd(line) {
+    line = line.trim(); if (!line) return;
+    hist.push(line); hIdx = hist.length;
+    say(`<span class="t-ok">shinchan@re-lab</span>:<span class="t-warn">~</span>$ ${esc(line)}`);
+    const [cmd, ...args] = line.split(/\s+/), fn = CMDS[cmd.toLowerCase()];
+    const res = fn ? fn(args) : `<span class="t-err">command not found:</span> ${esc(cmd)}. Type <b>help</b>.`;
+    if (res != null) say(res);
+    tone(fn ? 880 : 200, .03, "square", .02);
+  }
+  $("#tForm").addEventListener("submit", e => { e.preventDefault(); runCmd(tIn.value); tIn.value = ""; });
+  tIn.addEventListener("keydown", e => {
+    if (e.key === "ArrowUp" && hist.length) { e.preventDefault(); hIdx = Math.max(0, hIdx - 1); tIn.value = hist[hIdx]; }
+    else if (e.key === "ArrowDown" && hist.length) { e.preventDefault(); hIdx = Math.min(hist.length, hIdx + 1); tIn.value = hist[hIdx] || ""; }
+    else if (e.key === "Tab") {
+      e.preventDefault();
+      const v = tIn.value, parts = v.split(" ");
+      const pool = parts.length > 1 ? ["shinchan.exe", "readme.txt", "flag.txt", "writeups/", "rop", "quarantine"] : Object.keys(CMDS);
+      const m = pool.filter(c => c.startsWith(parts[parts.length - 1]));
+      if (m.length === 1) { parts[parts.length - 1] = m[0]; tIn.value = parts.join(" ") + (parts.length === 1 ? " " : ""); }
+      else if (m.length > 1) say(`<span class="t-dim">${m.join("  ")}</span>`);
+    }
+  });
+  tOut.addEventListener("click", () => { if (!getSelection().toString()) tIn.focus({ preventScroll: true }); });
+  ["help", "whoami", "ls", "cat readme.txt", "strings shinchan.exe", "yara", "play rop", "sudo su"].forEach(c => {
+    const b = document.createElement("button"); b.type = "button"; b.textContent = c;
+    b.addEventListener("click", () => runCmd(c));
+    $("#qcmds").appendChild(b);
+  });
+  say(`<span class="t-warn">SHINCHAN-OS 1.0</span> <span class="t-dim">(tty1) · last login from the debugger</span>\nType <b>help</b>, or tap a command below.`);
+
+  /* ---------- Section tracking, reveals, explorer ---------- */
+  const sections = ["player", "stages", "inventory", "arcade", "bonus", "shell", "contact"];
+  const seen = new Set(store.get("seen", []));
+  const navLinks = [...document.querySelectorAll(".bar nav a")];
+  const io = new IntersectionObserver(entries => {
+    for (const en of entries) {
+      if (!en.isIntersecting) continue;
+      const id = en.target.id;
+      navLinks.forEach(a => a.classList.toggle("here", a.getAttribute("href") === "#" + id));
+      if (!seen.has(id)) { seen.add(id); store.set("seen", [...seen]); if (seen.size === sections.length) unlock("explore"); }
+      const h = en.target.querySelector(".sc-h");
+      if (h && !h.dataset.done) { h.dataset.done = 1; scramble(h, 600); }
+      if (id === "player" && !reduce) { statsEl.classList.remove("charge"); void statsEl.offsetWidth; statsEl.classList.add("charge"); }
+      if (!reduce) en.target.querySelectorAll(".cart, .cap, .stat").forEach((el, k) => {
+        el.style.animationDelay = (k * 50) + "ms"; el.classList.add("pop");
+        el.addEventListener("animationend", () => { el.classList.remove("pop"); el.style.animationDelay = ""; }, { once: true });
+      });
+    }
+  }, { threshold: .25 });
+  sections.forEach(id => io.observe(document.getElementById(id)));
+
+  /* ---------- Blog (loads published posts from the backend) ---------- */
+  const postsEl = $("#posts"), blogDlg = $("#blogDlg");
+  const fmtDate = s => { const d = new Date(s + "T00:00:00"); return isNaN(d) ? s : d.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "2-digit" }); };
+  function note(text) { const p = document.createElement("p"); p.className = "blog-note"; p.textContent = text; postsEl.replaceChildren(p); }
+  function openPost(p) {
+    $("#blogMeta").textContent = fmtDate(p.date) + " · POST";
+    $("#blogTitle").textContent = p.title;
+    $("#blogText").textContent = p.body;
+    blogDlg.showModal(); tone(523, .05);
+  }
+  function renderPosts(list) {
+    if (!list.length) { note("no entries yet. check back soon."); return; }
+    postsEl.replaceChildren();
+    list.forEach(p => {
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "tile post tilt";
+      const t = document.createElement("time"); t.textContent = fmtDate(p.date);
+      const h = document.createElement("h3"); h.textContent = p.title;
+      const x = document.createElement("p"); x.textContent = p.excerpt || "";
+      const m = document.createElement("span"); m.className = "more"; m.textContent = "READ POST ▶";
+      b.append(t, h, x, m);
+      b.addEventListener("click", () => openPost(p));
+      postsEl.appendChild(b); addTilt(b);
+    });
+  }
+  async function loadPosts() {
+    try {
+      const res = await fetch("/api/blogs", { headers: { Accept: "application/json" } });
+      if (!res.ok) throw new Error(res.status);
+      renderPosts((await res.json()).posts || []);
+    } catch {
+      note("blog feed offline. open the page through the server to see posts.");
+    }
+  }
+  loadPosts();
+
+  /* ---------- Continue countdown ---------- */
+  if (!reduce) {
+    const c = $("#count"); let n = 9;
+    setInterval(() => {
+      if (c.classList.contains("over")) { c.classList.remove("over"); n = 9; c.textContent = n; return; }
+      n--; if (n < 0) { c.classList.add("over"); c.textContent = "GAME OVER"; return; }
+      c.textContent = n;
+    }, 1000);
+  }
+})();
+</script>
