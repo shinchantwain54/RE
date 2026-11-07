@@ -737,7 +737,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   const hx = (n, w) => (n >>> 0).toString(16).toUpperCase().padStart(w, "0");
 
   /* ---------- Sound ---------- */
-  let sfx = store.get("sfx", false), actx = null;
+  let sfx = store.get("sfx", true), actx = null;
   const sfxBtn = $("#sfxBtn");
   function syncSfx() { sfxBtn.setAttribute("aria-pressed", String(sfx)); sfxBtn.textContent = sfx ? "SFX ON" : "SFX"; }
   function tone(f, d = .07, type = "square", vol = .035, at = 0) {
