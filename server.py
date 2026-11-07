@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Blog backend for the SHINCHAN.EXE page. Standard library only.
+"""Blog backend for the SHREAN.EXE page. Standard library only.
 
 Start it with a strong admin password in the environment:
     PowerShell:  $env:ADMIN_PASSWORD = "..."; python server.py
