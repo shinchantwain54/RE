@@ -465,6 +465,14 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   .stat { grid-template-columns: minmax(0, 1fr) 3ch; }
   .stat .seg { grid-column: 1 / -1; grid-row: 2; }
   .cta { grid-template-columns: minmax(0, 1fr); }
+  h1 { white-space: normal; font-size: clamp(30px, 9vw, 44px); }
+  .intro { padding: 22px; }
+  section { padding-block: 48px 8px; }
+  .post { min-height: 0; padding: 18px; }
+  .post h3 { min-height: 0; }
+  .sub { margin-bottom: 22px; }
+  .cta .count { font-size: 96px; }
+  .posts { grid-template-columns: minmax(0, 1fr); }
 }
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
