@@ -544,7 +544,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       <p class="sub">Self-rated, out of 100. Click the sprite to make it jump.</p>
       <div class="player">
         <div class="tile card tilt">
-          <div class="spritebox"><canvas class="sprite" id="sprite" width="32" height="32" role="button" tabindex="0" aria-label="Player sprite, press to jump"></canvas><span class="shadow" aria-hidden="true"></span></div>
+          <div class="spritebox"><canvas class="sprite" id="sprite" width="16" height="16" role="button" tabindex="0" aria-label="Player sprite, press to jump"></canvas><span class="shadow" aria-hidden="true"></span></div>
           <dl>
             <dt>CLASS</dt><dd>Reverse Engineer</dd>
             <dt>GUILD</dt><dd>Student, independent researcher</dd>
@@ -1006,52 +1006,92 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
     statsEl.insertBefore(d, special);
   });
 
-  /* ---------- Sprite ---------- */
-  const MAP = [
-    "daaadddadcdadccccccdcddaaccddafo",
-    "daoaadaadaaabbbbbbccccccaaccddag",
-    "daaaadaddccbbbbbbbbbbbccaaccccdc",
-    "aapaaaadcccbbbbbbbbbbbbccddccccc",
-    "ddfaapgccbbbbbbbbbbbbbbbccapcaad",
-    "aagaafacbbbbbbbbbbbbbbbbbbcddpad",
-    "faaadpacbbbbbbbbbbbbbbbbbbcpafag",
-    "fdfaagdcbbbbbbbbbbbbbbbbbbbcdaap",
-    "hafaaadcbbbbbbbbbbccccccbbbcdddd",
-    "ffggaadccbbbbbbcccccaaddcbbccbcd",
-    "eeeggadbbbbbbbbbbbccaacbbbbhfaaa",
-    "dfjjefdbbbbbbbccbccaaabcccdfggfg",
-    "cdgooofbbbbbaacccdaaaacddikkkfhf",
-    "bikmoaaccccchhaaaaaalaaahkmmmmkh",
-    "bimmahicaaccaallllalllhhhemmjjef",
-    "bcmmhidccaadhallllaaaaaahemmjjjj",
-    "cckihhadcaadaaallllacccahaammjmj",
-    "hdfehhhacaaddaaaaaaccccchanmjejj",
-    "gfdgaaaadbbadaaaaaccaaadhiiiiiff",
-    "ggggaaaaecbaddaaaaaaccaaiiiiaaai",
-    "gggggaafghbaaccaaaaaaaadahacadad",
-    "ggfggfaeggdaaaccccaadcdbhhaacafi",
-    "gffffefeegfaaaaccccbcbbbdgaacaab",
-    "fffejkiheeghaaaaaacdacbcaaddaaac",
-    "ffjjeekieeegaaaaaaaafdfhddggdodh",
-    "geeeeehifeeegaaaaaaaefeegahgajjj",
-    "enkjniaiafeejaaaaaadfkhjgghffjjj",
-    "nnjnaiiiaageeeaaaaacfeffaofhfeaf",
-    "neehnikiihheeegaaaacfeeefhaggeaa",
-    "ejeekikiikheeeefaaaagekeehadhgaa",
-    "jjeeeiiaikffeeegfhafeiikkeggglaa",
-    "ejeeehainefffffffhakiiiankiffaaa",
+  /* ---------- Sprite: an original pixel runner, four frames looping ---------- */
+  const RUN = [
+    [
+      "................",
+      ".....HHHHHH.....",
+      "....HHHHHHHH....",
+      "....HSSSSSSH....",
+      "....HSESSESH....",
+      "....HSSSSSSH....",
+      ".....SSSSSS.....",
+      "....RRRRRRRR....",
+      "..SRRRRRRRRRRS..",
+      "..SRRRRRRRRRRS..",
+      "...RRRRRRRRRR...",
+      "....BBBBBBBB....",
+      "....BBBBBBBB....",
+      "....SS....SS....",
+      "...SS......SS...",
+      "..AAA......AAA..",
+    ],
+    [
+      "................",
+      ".....HHHHHH.....",
+      "....HHHHHHHH....",
+      "....HSSSSSSH....",
+      "....HSESSESH....",
+      "....HSSSSSSH....",
+      ".....SSSSSS.....",
+      "....RRRRRRRR....",
+      "..SRRRRRRRRRRS..",
+      "..SRRRRRRRRRRS..",
+      "...RRRRRRRRRR...",
+      "....BBBBBBBB....",
+      "....BBBBBBBB....",
+      ".....SS..SS.....",
+      ".....SS..SS.....",
+      "....AAA..AAA....",
+    ],
+    [
+      "................",
+      ".....HHHHHH.....",
+      "....HHHHHHHH....",
+      "....HSSSSSSH....",
+      "....HSESSESH....",
+      "....HSSSSSSH....",
+      ".....SSSSSS.....",
+      "....RRRRRRRR....",
+      "..SRRRRRRRRRRS..",
+      "..SRRRRRRRRRRS..",
+      "...RRRRRRRRRR...",
+      "....BBBBBBBB....",
+      "....BBBBBBBB....",
+      "...SS.....SS....",
+      "..SS.......SS...",
+      ".AAA.......AAA..",
+    ],
+    [
+      "................",
+      ".....HHHHHH.....",
+      "....HHHHHHHH....",
+      "....HSSSSSSH....",
+      "....HSESSESH....",
+      "....HSSSSSSH....",
+      ".....SSSSSS.....",
+      "....RRRRRRRR....",
+      "..SRRRRRRRRRRS..",
+      "..SRRRRRRRRRRS..",
+      "...RRRRRRRRRR...",
+      "....BBBBBBBB....",
+      "....BBBBBBBB....",
+      ".....SS..SS.....",
+      ".....SS..SS.....",
+      "....AAA..AAA....",
+    ],
   ];
-  const PAL = { a: "#995b26", b: "#2a1809", c: "#583216", d: "#734b25", e: "#d4af90", f: "#b28d64", g: "#cc9d64", h: "#9d7356", i: "#605363", j: "#e6cba6", k: "#ae9791", l: "#c77230", m: "#e4e4e3", n: "#8f798d", o: "#ebca63", p: "#ae8633" };
+  const PAL = { H: "#1b1b22", S: "#ffcf9e", E: "#17161c", R: "#ff4fa8", B: "#44e6ff", A: "#ffb627" };
   const sprite = $("#sprite"), sctx = sprite.getContext("2d");
-  function drawSprite(blink) {
-    sctx.clearRect(0, 0, 32, 32);
-    MAP.forEach((row, y) => [...row].forEach((p, x) => {
-      const k = blink && p === "C" ? "K" : p;
-      if (PAL[k]) { sctx.fillStyle = PAL[k]; sctx.fillRect(x, y, 1, 1); }
+  let runFrame = 0;
+  function drawSprite() {
+    sctx.clearRect(0, 0, 16, 16);
+    RUN[runFrame].forEach((row, y) => [...row].forEach((p, x) => {
+      if (PAL[p]) { sctx.fillStyle = PAL[p]; sctx.fillRect(x, y, 1, 1); }
     }));
   }
-  drawSprite(false);
-  if (!reduce) setInterval(() => { drawSprite(true); setTimeout(() => drawSprite(false), 140); }, 3800);
+  drawSprite();
+  if (!reduce) setInterval(() => { runFrame = (runFrame + 1) % RUN.length; drawSprite(); }, 160);
   function jump() {
     sprite.classList.remove("jump"); void sprite.offsetWidth; sprite.classList.add("jump");
     tone(392, .06); tone(784, .08, "square", .03, .06); addScore(10);
