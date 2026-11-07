@@ -100,7 +100,7 @@ h2 { font-family: var(--display); font-weight: 700; font-size: clamp(26px, 4vw, 
 .p1 span { background: var(--ink); color: var(--surface); padding: 3px 8px; border-radius: 6px; }
 h1 {
   font-family: var(--display); font-weight: 700; margin: 0; cursor: default;
-  font-size: clamp(40px, 7vw, 82px); line-height: .95; letter-spacing: -.01em;
+  font-size: clamp(28px, 4.4vw, 60px); white-space: nowrap; line-height: .95; letter-spacing: -.01em;
   color: var(--ink);
   text-shadow: 3px 3px 0 var(--hot), 6px 6px 0 var(--sun);
 }
@@ -501,7 +501,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       <div class="tile intro tilt">
         <span class="rings" aria-hidden="true"></span>
         <div class="p1"><span>P1</span> REVERSE ENGINEER · MALWARE ANALYST</div>
-        <h1 id="title" aria-label="SHREAN.exe"><span class="sc">SHRE</span><br><span class="sc">AN</span><em class="sc">.exe</em></h1>
+        <h1 id="title" aria-label="SHREAN.exe"><span class="sc">SHREAN</span><em class="sc">.exe</em></h1>
         <p class="lede">I take binaries apart to see how they really work: <b>Windows malware, loaders, C2 traffic</b> and the web APIs behind modern apps.</p>
         <div class="ctas">
           <a class="key" href="#stages">PRESS START</a>
@@ -529,8 +529,8 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       </div>
       <div class="tile mini m3 tilt">
         <span class="k">HOME BASE</span>
-        <span class="v">Kali + isolated Windows VMs</span>
-        <p>Static first, then the debugger.</p>
+        <span class="v">Kali + Windows VMs with Elastic EDR</span>
+        <p>Isolated Windows VMs with Elastic EDR for evasion testing. Static first, then the debugger.</p>
       </div>
     </div>
   </div>
@@ -1052,11 +1052,11 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       steps: ["Start from a known process and list its tokens, handles and loaded modules.", "Walk the PEB and loader lists to see what the process says it loaded.", "Trace Win32 calls down to the syscalls they actually make.", "Use WinDbg to break on the kernel transitions that matter.", "Write up the behaviour from the outside and from the inside."] },
     { w: "WORLD 3-2", tag: "EVASION", c: "var(--hot)", name: "Evasion Mazes",
       blurb: "How malware hides from analysts: anti-debugging, sandbox checks and hook removal, and how to spot each one.",
-      boss: "Sandbox detection loop", chips: ["anti-debug", "unhooking", "x64dbg"],
+      boss: "Sandbox detection loop", chips: ["anti-debug", "unhooking", "x64dbg", "VM lab"],
       steps: ["Find the environment checks: timing, CPU features, VM artifacts and usernames.", "Spot anti-debugging calls and skip them safely in a snapshot.", "Check whether the sample unhooks ntdll and compare it with a clean copy.", "Run it in two environments and compare the behaviour.", "Document each trick: the check, the signal, and how to get past it in the lab."] },
     { w: "WORLD 4-1", tag: "ENDPOINT", c: "var(--teal)", name: "EDR Fortress",
       blurb: "How endpoint tools see behaviour through hooks, ETW and telemetry, and how to test detections without breaking the lab.",
-      boss: "Hook-based detection", chips: ["ETW", "Sysmon", "EDR telemetry"],
+      boss: "Hook-based detection", chips: ["ETW", "Sysmon", "Elastic EDR"],
       steps: ["Map which telemetry the endpoint tool uses: ETW, kernel callbacks, Sysmon.", "Run a benign test that triggers each source and record what fires.", "Read the process trees and command lines the way an analyst would.", "Write a detection and check it fires on the test but not on normal activity.", "Note the gaps you found and how to close them."] },
   ];
   const played = new Set(store.get("carts", []));
