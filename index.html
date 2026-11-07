@@ -368,6 +368,8 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 
 /* Single dark theme now, so the light/dark toggle is hidden */
 #themeBtn { display: none; }
+.carts { transition: opacity .3s; }
+.carts.swap { opacity: 0; }
 
 /* Blog */
 .posts { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px; }
@@ -511,8 +513,8 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 
       <div class="tile mini m1 tilt">
         <span class="k">NOW PLAYING</span>
-        <span class="v typed" id="nowPlaying">Bug bounty</span>
-        <p>Hunting auth, IDOR and API logic bugs on HackerOne.</p>
+        <span class="v typed" id="nowPlaying">Windows internals</span>
+        <p>Tracing how Windows really runs a process.</p>
       </div>
       <div class="tile mini m2 tilt">
         <span class="k">BADGES</span>
@@ -542,7 +544,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
           <dl>
             <dt>CLASS</dt><dd>Reverse Engineer</dd>
             <dt>GUILD</dt><dd>Student, independent researcher</dd>
-            <dt>QUEST</dt><dd>Bug bounty on HackerOne</dd>
+            <dt>QUEST</dt><dd>Analyse samples, write the detection</dd>
           </dl>
         </div>
         <div class="tile stats" id="stats">
@@ -556,7 +558,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
     <div class="wrap">
       <p class="eyebrow">STAGE 02 · GAME LIBRARY</p>
       <h2 class="sc-h">Pick a cartridge</h2>
-      <p class="sub">Four areas I work in. Insert a cartridge to see how I play it.</p>
+      <p class="sub">The areas I work in. Cartridges rotate every few seconds; insert one to see how I play it.</p>
       <div class="carts" id="carts"></div>
     </div>
   </section>
@@ -661,7 +663,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
     <div class="wrap">
       <p class="eyebrow">SIDE QUEST · BLOG</p>
       <h2 class="sc-h">Field notes</h2>
-      <p class="sub">Write-ups from the lab: analysis walkthroughs, tooling notes and what I learned on bounty targets.</p>
+      <p class="sub">Write-ups from the lab: analysis walkthroughs, tooling notes and what I learned on samples and labs.</p>
       <div class="posts" id="posts" aria-live="polite"><p class="blog-note">loading the log…</p></div>
     </div>
   </section>
@@ -672,8 +674,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
         <div>
           <p class="eyebrow" style="color:#fff;opacity:.8">CONTINUE?</p>
           <h2>Insert coin to collaborate</h2>
-          <p>Open to research collaborations, malware write-up reviews and security roles. My bounty work lives on HackerOne.</p>
-          <a class="key" href="https://hackerone.com/shinchan54" target="_blank" rel="noopener">HACKERONE / shinchan54</a>
+          <p>Open to research collaborations, malware write-up reviews and security roles.</p>
         </div>
         <div class="count" id="count" aria-hidden="true">9</div>
       </div>
@@ -753,7 +754,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   const ACH = [
     ["hex", "0x", "Header hacker", "Find e_lfanew in the hex dump."],
     ["explore", "MAP", "Explorer", "Visit every stage of the page."],
-    ["carts", "CRT", "Collector", "Insert all four cartridges."],
+    ["carts", "CRT", "Collector", "Insert every cartridge."],
     ["keys", "KEY", "Key master", "Press all ten tool keys."],
     ["step", "F7", "Single stepper", "Step the debugger all the way to ret."],
     ["crack", "1UP", "Reverser", "Make check_key return 1."],
@@ -847,7 +848,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   });
 
   /* ---------- "Now playing" rotator ---------- */
-  const playing = ["Bug bounty", "Malware triage", "Loader unpacking", "YARA writing"];
+  const playing = ["Windows internals", "Malware triage", "Loader unpacking", "EDR telemetry"];
   let pi = 0;
   if (!reduce) setInterval(() => { pi = (pi + 1) % playing.length; const el = $("#nowPlaying"); el.dataset.text = playing[pi]; scramble(el, 600); }, 3600);
 
@@ -1037,20 +1038,45 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       blurb: "Reading beacon traffic over TCP, DNS and HTTP, then pulling network IOCs out of the capture.",
       boss: "DNS tunnel", chips: ["Wireshark", "REMnux", "IOCs"],
       steps: ["Capture traffic with a fake internet on REMnux so the sample talks.", "Find the beacon: interval, jitter, user agent and URI pattern.", "Decode payloads in DNS queries or HTTP bodies.", "Turn domains, IPs and patterns into IOCs and detection rules."] },
-    { w: "WORLD 3-1", tag: "WEB", c: "var(--violet)", name: "Bounty Arena",
-      blurb: "Auth, IDOR and API logic bugs on HackerOne programs, in scope and validated before reporting.",
-      boss: "Account takeover chain", chips: ["OAuth", "APIs", "Burp"],
-      steps: ["Read the program scope and rules before sending a single request.", "Map the app through Burp: every role, object ID and auth flow.", "Test access control with two accounts I own, swapping IDs and tokens.", "Prove real impact, then cut anything theoretical.", "Write a clear report with exact reproduction steps."] },
+    { w: "WORLD 3-1", tag: "INTERNALS", c: "var(--violet)", name: "Windows Internals",
+      blurb: "How Windows really runs a process: tokens, handles, the PEB and the syscalls underneath the Win32 API.",
+      boss: "Token privilege escalation", chips: ["WinDbg", "ETW", "Syscalls"],
+      steps: ["Start from a known process and list its tokens, handles and loaded modules.", "Walk the PEB and loader lists to see what the process says it loaded.", "Trace Win32 calls down to the syscalls they actually make.", "Use WinDbg to break on the kernel transitions that matter.", "Write up the behaviour from the outside and from the inside."] },
+    { w: "WORLD 3-2", tag: "EVASION", c: "var(--hot)", name: "Evasion Mazes",
+      blurb: "How malware hides from analysts: anti-debugging, sandbox checks and hook removal, and how to spot each one.",
+      boss: "Sandbox detection loop", chips: ["anti-debug", "unhooking", "x64dbg"],
+      steps: ["Find the environment checks: timing, CPU features, VM artifacts and usernames.", "Spot anti-debugging calls and skip them safely in a snapshot.", "Check whether the sample unhooks ntdll and compare it with a clean copy.", "Run it in two environments and compare the behaviour.", "Document each trick: the check, the signal, and how to get past it in the lab."] },
+    { w: "WORLD 4-1", tag: "ENDPOINT", c: "var(--teal)", name: "EDR Fortress",
+      blurb: "How endpoint tools see behaviour through hooks, ETW and telemetry, and how to test detections without breaking the lab.",
+      boss: "Hook-based detection", chips: ["ETW", "Sysmon", "EDR telemetry"],
+      steps: ["Map which telemetry the endpoint tool uses: ETW, kernel callbacks, Sysmon.", "Run a benign test that triggers each source and record what fires.", "Read the process trees and command lines the way an analyst would.", "Write a detection and check it fires on the test but not on normal activity.", "Note the gaps you found and how to close them."] },
   ];
   const played = new Set(store.get("carts", []));
   const cartsEl = $("#carts"), dlg = $("#console"), body = $("#conBody");
-  CARTS.forEach((c, i) => {
-    const b = document.createElement("button");
-    b.type = "button"; b.className = "cart" + (played.has(i) ? " played" : ""); b.style.setProperty("--c", c.c);
-    b.innerHTML = `<div class="label"><div class="w"><span>${c.w}</span><b>${c.tag}</b></div><h3>${c.name}</h3><p>${c.blurb}</p><span class="boss">Boss: ${c.boss}</span><div class="chips">${c.chips.map(x => `<span>${x}</span>`).join("")}</div></div><span class="insert">▼ INSERT CARTRIDGE</span>`;
-    b.addEventListener("click", () => insert(b, i));
-    cartsEl.appendChild(b); addTilt(b);
-  });
+  const SHOWN = 4;
+  let cartOffset = 0;
+  function renderCarts() {
+    cartsEl.replaceChildren();
+    for (let k = 0; k < SHOWN; k++) {
+      const i = (cartOffset + k) % CARTS.length, c = CARTS[i];
+      const b = document.createElement("button");
+      b.type = "button"; b.className = "cart" + (played.has(i) ? " played" : ""); b.style.setProperty("--c", c.c);
+      b.innerHTML = `<div class="label"><div class="w"><span>${c.w}</span><b>${c.tag}</b></div><h3>${c.name}</h3><p>${c.blurb}</p><span class="boss">Boss: ${c.boss}</span><div class="chips">${c.chips.map(x => `<span>${x}</span>`).join("")}</div></div><span class="insert">▼ INSERT CARTRIDGE</span>`;
+      b.addEventListener("click", () => insert(b, i));
+      cartsEl.appendChild(b); addTilt(b);
+    }
+  }
+  renderCarts();
+  if (!reduce) {
+    let hovering = false;
+    cartsEl.addEventListener("pointerenter", () => { hovering = true; });
+    cartsEl.addEventListener("pointerleave", () => { hovering = false; });
+    setInterval(() => {
+      if (hovering || dlg.open) return;
+      cartsEl.classList.add("swap");
+      setTimeout(() => { cartOffset = (cartOffset + 1) % CARTS.length; renderCarts(); cartsEl.classList.remove("swap"); }, 300);
+    }, 4000);
+  }
   function insert(btn, i) {
     tone(180, .12, "triangle", .05); tone(120, .15, "square", .03, .12);
     const open = () => {
@@ -1058,7 +1084,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       body.innerHTML = `<span class="w">${c.w} · ${c.tag}</span><h3 id="conTitle">${c.name}</h3><p>${c.blurb}</p>
         <ol>${c.steps.map((s, k) => `<li style="animation-delay:${200 + k * 90}ms">${s}</li>`).join("")}</ol>
         <span class="boss">Boss: ${c.boss}</span><div class="chips">${c.chips.map(x => `<span>${x}</span>`).join("")}</div>
-        <div class="foot"><small>${played.size + (played.has(i) ? 0 : 1)}/4 cartridges played</small><button class="key" type="button" data-close>EJECT</button></div>`;
+        <div class="foot"><small>${played.size + (played.has(i) ? 0 : 1)}/${CARTS.length} cartridges played</small><button class="key" type="button" data-close>EJECT</button></div>`;
       dlg.showModal(); btn.classList.remove("inserting");
       if (!played.has(i)) { played.add(i); store.set("carts", [...played]); btn.classList.add("played"); addScore(100); }
       if (played.size === CARTS.length) unlock("carts");
@@ -1496,7 +1522,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   const tOut = $("#tOut"), tIn = $("#tIn"), hist = [];
   let hIdx = 0;
   const say = html => { const d = document.createElement("div"); d.innerHTML = html; tOut.appendChild(d); tOut.scrollTop = tOut.scrollHeight; };
-  const FILES = { "readme.txt": "Reverse engineer and malware analyst. I like taking binaries apart,\nwriting up what I find, and hunting bugs on HackerOne.", "flag.txt": "flag{y0u_ran_ls_b3fore_cat}" };
+  const FILES = { "readme.txt": "Reverse engineer and malware analyst. I like taking binaries apart,\nwriting up what I find, and digging into how Windows works underneath.", "flag.txt": "flag{y0u_ran_ls_b3fore_cat}" };
   const CMDS = {
     help: () => `<span class="t-warn">available commands</span>
   whoami · certs · tools · ls · cat &lt;file&gt;
@@ -1504,7 +1530,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
   play rop · play quarantine
   score · achievements · theme · sfx
   contact · history · clear`,
-    whoami: () => "shinchan · reverse engineer · malware analyst · bug bounty hunter",
+    whoami: () => "shinchan · reverse engineer · malware analyst · endpoint researcher",
     certs: () => `<span class="t-ok">✔ PNPT</span>  <span class="t-ok">✔ PJPT</span>  <span class="t-ok">✔ PMRP</span>  <span class="t-warn">… OSED (in progress)</span>`,
     tools: () => KEYS.map(k => `  [${k[1]}] ${k[2].padEnd(17)} <span class="t-dim">${k[3]}</span>`).join("\n"),
     ls: a => a[0] === "writeups/" || a[0] === "writeups" ? "<span class=\"t-dim\">(empty for now · write-ups coming soon)</span>" : `shinchan.exe  readme.txt  flag.txt  <span class="t-warn">writeups/</span>`,
@@ -1540,7 +1566,7 @@ check_key
     achievements: () => ACH.map(([id, , n]) => `  ${got.has(id) ? '<span class="t-ok">■</span>' : '<span class="t-dim">□</span>'} ${n}`).join("\n") + `\n${got.size}/${ACH.length} unlocked`,
     theme: () => { themeBtn.click(); return `theme → ${isDark() ? "dark" : "light"}`; },
     sfx: () => { sfxBtn.click(); return `sfx → ${sfx ? "on" : "off"}`; },
-    contact: () => `HackerOne: <a href="https://hackerone.com/shinchan54" target="_blank" rel="noopener">hackerone.com/shinchan54</a>`,
+    contact: () => "Open to research collaborations and security roles. See the Contact section on the page.",
     history: () => hist.map((h, i) => `  ${String(i + 1).padStart(3)}  ${esc(h)}`).join("\n") || "(empty)",
     echo: a => esc(a.join(" ")),
     date: () => new Date().toString(),
