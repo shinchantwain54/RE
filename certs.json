@@ -1,0 +1,17 @@
+[
+  {
+    "key": "PJPT",
+    "name": "Practical Junior Penetration Tester",
+    "logo": "logos/pjpt.png"
+  },
+  {
+    "key": "PNPT",
+    "name": "Practical Network Penetration Tester",
+    "logo": "logos/pnpt.png"
+  },
+  {
+    "key": "PMRP",
+    "name": "Practical Malware Research Professional",
+    "logo": "logos/pmrp.png"
+  }
+]

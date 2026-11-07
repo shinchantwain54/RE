@@ -43,6 +43,8 @@ button.danger { color: var(--hot); }
 .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 18px; }
 .check { display: flex; align-items: center; gap: 8px; margin-top: 16px; color: var(--ink); }
 .empty { color: var(--muted); }
+select { width: 100%; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--edge); background: var(--bg); color: var(--ink); font: inherit; }
+#certCard { margin-top: 24px; }
 </style>
 </head>
 <body>
@@ -67,6 +69,20 @@ button.danger { color: var(--hot); }
       <button class="primary" id="newBtn" type="button">New post</button>
     </div>
     <div class="list" id="list"></div>
+    <div class="card" id="certCard">
+      <strong>Certifications</strong>
+      <p class="empty">Click Edit on a cert to change its name or logo. The logo shows under every post tagged with it.</p>
+      <div class="list" id="certList"></div>
+      <form id="certForm">
+        <label for="certKey">Key (for example PJPT)</label>
+        <input id="certKey" type="text" maxlength="10" autocomplete="off" required>
+        <label for="certName">Full name</label>
+        <input id="certName" type="text" maxlength="120" required>
+        <label for="certFile">Logo (PNG, JPEG or WebP, 1 MB max; leave empty to keep the current logo)</label>
+        <input id="certFile" type="file" accept="image/png,image/jpeg,image/webp">
+        <div class="actions"><button class="primary" type="submit">Save certification</button></div>
+      </form>
+    </div>
   </section>
 
   <section class="card" id="editView" hidden>
@@ -80,6 +96,8 @@ button.danger { color: var(--hot); }
       <input id="date" type="date" required>
       <label for="body">Body (plain text; leave a blank line between paragraphs)</label>
       <textarea id="body" maxlength="20000" required></textarea>
+      <label for="cert">Certification (its logo shows under the title)</label>
+      <select id="cert"></select>
       <label class="check"><input id="published" type="checkbox"> Published (visible on the site)</label>
       <div class="actions">
         <button class="primary" type="submit">Save</button>
@@ -134,10 +152,16 @@ button.danger { color: var(--hot); }
     $("#pw").focus();
   }
 
+  let certs = [];
+
   async function showList() {
     const data = await api("/api/admin/blogs");
+    const certData = await api("/api/admin/certs");
     posts = data.posts;
+    certs = certData.certs;
     renderList();
+    renderCerts();
+    fillCertSelect("");
     show("listView");
     $("#logoutBtn").hidden = false;
     msg("");
@@ -181,6 +205,7 @@ button.danger { color: var(--hot); }
     $("#date").value = p ? p.date : today();
     $("#body").value = p ? p.body : "";
     $("#published").checked = p ? p.published : false;
+    fillCertSelect(p ? p.cert : "");
     $("#deleteBtn").hidden = !p;
     show("editView");
     msg("");
@@ -215,6 +240,7 @@ button.danger { color: var(--hot); }
       excerpt: $("#excerpt").value,
       date: $("#date").value,
       body: $("#body").value,
+      cert: $("#cert").value,
       published: $("#published").checked,
     };
     try {
@@ -234,6 +260,81 @@ button.danger { color: var(--hot); }
       await api("/api/admin/blogs/" + id, { method: "DELETE" });
       await showList();
       msg("Deleted.");
+    } catch (err) {
+      msg(err.message, true);
+    }
+  });
+
+  function fillCertSelect(selected) {
+    const sel = $("#cert");
+    sel.replaceChildren();
+    const none = document.createElement("option");
+    none.value = ""; none.textContent = "No certification";
+    sel.appendChild(none);
+    certs.forEach(c => {
+      const o = document.createElement("option");
+      o.value = c.key; o.textContent = c.key + " · " + c.name;
+      sel.appendChild(o);
+    });
+    sel.value = selected || "";
+  }
+
+  function renderCerts() {
+    const list = $("#certList");
+    list.replaceChildren();
+    certs.forEach(c => {
+      const row = document.createElement("div");
+      row.className = "item";
+      const info = document.createElement("div");
+      const key = document.createElement("strong");
+      key.textContent = c.key;
+      const tag = document.createElement("span");
+      tag.className = "tag" + (c.logo ? " on" : "");
+      tag.textContent = c.logo ? "LOGO" : "NO LOGO";
+      const name = document.createElement("small");
+      name.textContent = c.name;
+      info.append(key, tag, document.createElement("br"), name);
+      const edit = document.createElement("button");
+      edit.type = "button";
+      edit.textContent = "Edit";
+      edit.addEventListener("click", () => {
+        $("#certKey").value = c.key;
+        $("#certName").value = c.name;
+        $("#certFile").value = "";
+        $("#certName").focus();
+      });
+      row.append(info, edit);
+      list.appendChild(row);
+    });
+  }
+
+  function readAsDataUrl(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(new Error("Could not read that file."));
+      reader.readAsDataURL(file);
+    });
+  }
+
+  $("#certForm").addEventListener("submit", async e => {
+    e.preventDefault();
+    const file = $("#certFile").files[0];
+    if (file && file.size > 1024 * 1024) {
+      msg("The logo must be 1 MB or smaller.", true);
+      return;
+    }
+    try {
+      const image = file ? await readAsDataUrl(file) : null;
+      await api("/api/admin/certs", {
+        method: "POST",
+        body: { key: $("#certKey").value, name: $("#certName").value, image },
+      });
+      $("#certKey").value = "";
+      $("#certName").value = "";
+      $("#certFile").value = "";
+      await showList();
+      msg("Certification saved.");
     } catch (err) {
       msg(err.message, true);
     }

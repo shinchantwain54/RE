@@ -384,6 +384,8 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 .post-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; color: #c9c5d8; max-height: 70vh; overflow-y: auto; padding-right: 4px; }
 #blogDlg { max-width: min(1000px, calc(100% - 32px)); }
 #blogDlg .screen-in { max-height: 88vh; }
+.cert { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 14px; color: var(--cyan); }
+.cert img { width: 44px; height: 44px; object-fit: contain; flex: none; }
 
 /* Patch chip */
 .patch { font-family: var(--mono); font-size: 11px; margin-left: 12px; padding: 0 6px; border-radius: 4px; border: 1px solid #4f4b63; color: #9c98ab; background: transparent; cursor: pointer; line-height: 1.6; align-self: center; }
@@ -1641,6 +1643,23 @@ check_key
     $("#blogText").textContent = p.body;
     blogDlg.showModal(); tone(523, .05);
   }
+  // Cert names and logos come from /api/certs, managed on the admin page.
+  let certMap = {};
+  function certRow(key) {
+    const info = certMap[key] || { name: "", logo: "" };
+    const row = document.createElement("div"); row.className = "cert";
+    if (info.logo) {
+      const img = document.createElement("img");
+      img.src = "/" + info.logo; img.alt = key + " logo"; img.loading = "lazy";
+      img.addEventListener("error", () => img.remove());
+      row.appendChild(img);
+    }
+    const s = document.createElement("span");
+    s.textContent = info.name ? key + " · " + info.name : key;
+    row.appendChild(s);
+    return row;
+  }
+
   function renderPosts(list) {
     if (!list.length) { note("no entries yet. check back soon."); return; }
     postsEl.replaceChildren();
@@ -1651,12 +1670,20 @@ check_key
       const h = document.createElement("h3"); h.textContent = p.title;
       const x = document.createElement("p"); x.textContent = p.excerpt || "";
       const m = document.createElement("span"); m.className = "more"; m.textContent = "READ POST ▶";
-      b.append(t, h, x, m);
+      if (p.cert) b.append(t, h, certRow(p.cert), x, m);
+      else b.append(t, h, x, m);
       b.addEventListener("click", () => openPost(p));
       postsEl.appendChild(b); addTilt(b);
     });
   }
   async function loadPosts() {
+    try {
+      const certRes = await fetch("/api/certs").catch(() => null);
+      if (certRes && certRes.ok) {
+        const { certs } = await certRes.json();
+        certMap = Object.fromEntries(certs.map(c => [c.key, c]));
+      }
+    } catch {}
     try {
       const res = await fetch("/api/blogs", { headers: { Accept: "application/json" } });
       if (!res.ok) throw new Error(res.status);

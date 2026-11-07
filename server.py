@@ -10,6 +10,7 @@ Public:  GET /api/blogs            published posts only
          GET /admin      control page (still needs the password to do anything)
 Admin:   POST /api/login, POST /api/logout, and /api/admin/blogs (CRUD), all behind a session cookie.
 """
+import base64
 import hashlib
 import hmac
 import json
@@ -34,6 +35,14 @@ LOGIN_MAX = 5
 MAX_BODY = 100 * 1024
 DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 UUID_RE = re.compile(r"^/api/admin/blogs/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})$")
+LOGO_RE = re.compile(r"^/logos/[a-z0-9_-]+\.(png|svg|jpe?g|webp)$")  # only files directly inside logos/
+LOGO_TYPES = {"png": "image/png", "svg": "image/svg+xml", "jpg": "image/jpeg", "jpeg": "image/jpeg", "webp": "image/webp"}
+CERTS_FILE = ROOT / "certs.json"
+LOGO_DIR = ROOT / "logos"
+CERT_KEY_RE = re.compile(r"^[A-Z0-9]{2,10}$")
+MAX_UPLOAD = 1536 * 1024  # request size for logo uploads; base64 adds about a third
+MAX_LOGO = 1024 * 1024    # decoded image size
+cert_lock = threading.Lock()
 
 PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 if len(PASSWORD) < 12:
@@ -85,6 +94,57 @@ def mutate_posts(change):
         return result
 
 
+def load_certs():
+    try:
+        return json.loads(CERTS_FILE.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        return []
+
+
+def write_logo(key, data_url):
+    """Decode a PNG, JPEG or WebP data URL, confirm the bytes really are that image, and save it under logos/."""
+    match = re.fullmatch(r"data:image/(png|jpeg|webp);base64,([A-Za-z0-9+/=\s]+)", data_url)
+    if not match:
+        raise ApiError(400, "Upload a PNG, JPEG or WebP image.")
+    kind, payload = match.group(1), match.group(2)
+    try:
+        data = base64.b64decode(payload)
+    except ValueError:
+        raise ApiError(400, "The image data is damaged.")
+    if len(data) > MAX_LOGO:
+        raise ApiError(413, "The logo must be 1 MB or smaller.")
+    real = {
+        "png": data.startswith(b"\x89PNG\r\n\x1a\n"),
+        "jpeg": data.startswith(b"\xff\xd8\xff"),
+        "webp": data[:4] == b"RIFF" and data[8:12] == b"WEBP",
+    }[kind]
+    if not real:
+        raise ApiError(400, "The file is not really a PNG, JPEG or WebP image.")
+    ext = "jpg" if kind == "jpeg" else kind
+    name = f"{key.lower()}.{ext}"
+    LOGO_DIR.mkdir(exist_ok=True)
+    tmp = LOGO_DIR / (name + ".tmp")
+    tmp.write_bytes(data)
+    os.replace(tmp, LOGO_DIR / name)
+    return f"logos/{name}"
+
+
+def upsert_cert(key, name, image):
+    with cert_lock:
+        certs = load_certs()
+        entry = next((c for c in certs if c["key"] == key), None)
+        if entry is None:
+            entry = {"key": key, "name": name, "logo": ""}
+            certs.append(entry)
+        entry["name"] = name
+        if image:
+            entry["logo"] = write_logo(key, image)  # raises before anything is saved if the image is bad
+        tmp = CERTS_FILE.with_suffix(".tmp")
+        tmp.write_text(json.dumps(certs, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        os.replace(tmp, CERTS_FILE)
+        return entry
+
+
 def find_post(posts, post_id):
     for post in posts:
         if post["id"] == post_id:
@@ -112,11 +172,15 @@ def validate(data):
         datetime.strptime(date, "%Y-%m-%d")
     except ValueError:
         raise ApiError(400, "date is not a real calendar date.")
+    cert = text("cert", 10)
+    if cert and not CERT_KEY_RE.match(cert):
+        raise ApiError(400, "cert must be a short key like PJPT.")
     return {
         "title": text("title", 120, required=True),
         "excerpt": text("excerpt", 300),
         "date": date,
         "body": text("body", 20000, required=True),
+        "cert": cert,
         "published": data.get("published") is True,
     }
 
@@ -188,7 +252,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_body(status, json.dumps(payload, ensure_ascii=False),
                        "application/json; charset=utf-8", extra_headers)
 
-    def read_json(self):
+    def read_json(self, limit=MAX_BODY):
         # Requiring JSON also blocks cross-site HTML forms, which cannot send this content type.
         if not self.headers.get("Content-Type", "").startswith("application/json"):
             raise ApiError(415, "Send the request as application/json.")
@@ -196,7 +260,7 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length") or 0)
         except ValueError:
             raise ApiError(400, "Bad Content-Length.")
-        if length > MAX_BODY:
+        if length > limit:
             raise ApiError(413, "Request is too large.")
         raw = self.rfile.read(length) if length else b""
         try:
@@ -228,6 +292,13 @@ class Handler(BaseHTTPRequestHandler):
             path = urlsplit(self.path).path
             if method == "GET" and path in PAGES:
                 return self.send_body(200, (ROOT / PAGES[path]).read_bytes(), "text/html; charset=utf-8")
+            if method == "GET" and LOGO_RE.match(path):
+                logo = ROOT / path.lstrip("/")
+                if not logo.is_file():
+                    raise ApiError(404, "Not found.")
+                return self.send_body(200, logo.read_bytes(), LOGO_TYPES[path.rsplit(".", 1)[1]])
+            if method == "GET" and path == "/api/certs":
+                return self.send_json(200, {"certs": load_certs()})
             if method == "GET" and path == "/api/blogs":
                 published = [p for p in sorted_posts(load_posts()) if p.get("published")]
                 public = [{k: v for k, v in p.items() if k != "published"} for p in published]
@@ -273,6 +344,22 @@ class Handler(BaseHTTPRequestHandler):
             post = {"id": str(uuid.uuid4()), **fields, "createdAt": now_iso()}
             mutate_posts(lambda posts: posts.append(post))
             return self.send_json(201, {"post": post})
+        if path == "/api/admin/certs" and method == "GET":
+            return self.send_json(200, {"certs": load_certs()})
+        if path == "/api/admin/certs" and method == "POST":
+            body = self.read_json(limit=MAX_UPLOAD)
+            if not isinstance(body, dict):
+                raise ApiError(400, "Expected a JSON object.")
+            key = str(body.get("key", "")).strip().upper()
+            name = str(body.get("name", "")).strip()
+            if not CERT_KEY_RE.match(key):
+                raise ApiError(400, "The key must be 2 to 10 capital letters or digits, like PJPT.")
+            if not name or len(name) > 120:
+                raise ApiError(400, "Name is required (max 120 characters).")
+            image = body.get("image") or None
+            if image is not None and not isinstance(image, str):
+                raise ApiError(400, "image must be a data URL string.")
+            return self.send_json(200, {"cert": upsert_cert(key, name, image)})
         match = UUID_RE.match(path)
         if match and method == "PUT":
             fields = validate(self.read_json())
