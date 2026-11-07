@@ -385,7 +385,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 #blogDlg { max-width: min(1000px, calc(100% - 32px)); }
 #blogDlg .screen-in { max-height: 88vh; }
 .cert { display: flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 14px; color: var(--cyan); }
-.cert img { width: 44px; height: 44px; object-fit: contain; flex: none; }
+.cert img { width: 96px; height: 96px; object-fit: contain; flex: none; }
 
 /* Patch chip */
 .patch { font-family: var(--mono); font-size: 11px; margin-left: 12px; padding: 0 6px; border-radius: 4px; border: 1px solid #4f4b63; color: #9c98ab; background: transparent; cursor: pointer; line-height: 1.6; align-self: center; }
@@ -1654,9 +1654,11 @@ check_key
       img.addEventListener("error", () => img.remove());
       row.appendChild(img);
     }
-    const s = document.createElement("span");
-    s.textContent = info.name ? key + " · " + info.name : key;
-    row.appendChild(s);
+    if (!info.logo) {  // no logo uploaded yet, so fall back to the text
+      const s = document.createElement("span");
+      s.textContent = info.name ? key + " · " + info.name : key;
+      row.appendChild(s);
+    }
     return row;
   }
 
@@ -1668,10 +1670,9 @@ check_key
       b.type = "button"; b.className = "tile post tilt";
       const t = document.createElement("time"); t.textContent = fmtDate(p.date);
       const h = document.createElement("h3"); h.textContent = p.title;
-      const x = document.createElement("p"); x.textContent = p.excerpt || "";
       const m = document.createElement("span"); m.className = "more"; m.textContent = "READ POST ▶";
-      if (p.cert) b.append(t, h, certRow(p.cert), x, m);
-      else b.append(t, h, x, m);
+      if (p.cert) b.append(t, h, certRow(p.cert), m);
+      else b.append(t, h, m);
       b.addEventListener("click", () => openPost(p));
       postsEl.appendChild(b); addTilt(b);
     });
