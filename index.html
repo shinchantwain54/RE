@@ -544,7 +544,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
       <p class="sub">Self-rated, out of 100. Click the sprite to make it jump.</p>
       <div class="player">
         <div class="tile card tilt">
-          <div class="spritebox"><canvas class="sprite" id="sprite" width="16" height="16" role="button" tabindex="0" aria-label="Player sprite, press to jump"></canvas><span class="shadow" aria-hidden="true"></span></div>
+          <div class="spritebox"><canvas class="sprite" id="sprite" width="32" height="32" role="button" tabindex="0" aria-label="Player sprite, press to jump"></canvas><span class="shadow" aria-hidden="true"></span></div>
           <dl>
             <dt>CLASS</dt><dd>Reverse Engineer</dd>
             <dt>GUILD</dt><dd>Student, independent researcher</dd>
@@ -1008,15 +1008,43 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 
   /* ---------- Sprite ---------- */
   const MAP = [
-    "................", ".....MMMMMM.....", "....MMMMMMMM....", "...MMKKKKKKMM...",
-    "...MKSSSSSSKM...", "...MKSCSSCSKM...", "...MKSSSSSSKM...", "...MMKSSSSKMM...",
-    "....MMMMMMMM....", "...MMMMMMMMMM...", "..MMMAMMMMAMMM..", "..MMMAAAAAAMMM..",
-    "..SS.MMMMMM.YYY.", ".....MM..MM.Y.Y.", ".....KK..KK.YYYG", "....KKK..KKK...G",
+    "daaadddadcdadccccccdcddaaccddafo",
+    "daoaadaadaaabbbbbbccccccaaccddag",
+    "daaaadaddccbbbbbbbbbbbccaaccccdc",
+    "aapaaaadcccbbbbbbbbbbbbccddccccc",
+    "ddfaapgccbbbbbbbbbbbbbbbccapcaad",
+    "aagaafacbbbbbbbbbbbbbbbbbbcddpad",
+    "faaadpacbbbbbbbbbbbbbbbbbbcpafag",
+    "fdfaagdcbbbbbbbbbbbbbbbbbbbcdaap",
+    "hafaaadcbbbbbbbbbbccccccbbbcdddd",
+    "ffggaadccbbbbbbcccccaaddcbbccbcd",
+    "eeeggadbbbbbbbbbbbccaacbbbbhfaaa",
+    "dfjjefdbbbbbbbccbccaaabcccdfggfg",
+    "cdgooofbbbbbaacccdaaaacddikkkfhf",
+    "bikmoaaccccchhaaaaaalaaahkmmmmkh",
+    "bimmahicaaccaallllalllhhhemmjjef",
+    "bcmmhidccaadhallllaaaaaahemmjjjj",
+    "cckihhadcaadaaallllacccahaammjmj",
+    "hdfehhhacaaddaaaaaaccccchanmjejj",
+    "gfdgaaaadbbadaaaaaccaaadhiiiiiff",
+    "ggggaaaaecbaddaaaaaaccaaiiiiaaai",
+    "gggggaafghbaaccaaaaaaaadahacadad",
+    "ggfggfaeggdaaaccccaadcdbhhaacafi",
+    "gffffefeegfaaaaccccbcbbbdgaacaab",
+    "fffejkiheeghaaaaaacdacbcaaddaaac",
+    "ffjjeekieeegaaaaaaaafdfhddggdodh",
+    "geeeeehifeeegaaaaaaaefeegahgajjj",
+    "enkjniaiafeejaaaaaadfkhjgghffjjj",
+    "nnjnaiiiaageeeaaaaacfeffaofhfeaf",
+    "neehnikiihheeegaaaacfeeefhaggeaa",
+    "ejeekikiikheeeefaaaagekeehadhgaa",
+    "jjeeeiiaikffeeegfhafeiikkeggglaa",
+    "ejeeehainefffffffhakiiiankiffaaa",
   ];
-  const PAL = { M: "#ff5a36", K: "#17161c", S: "#ffcf9e", C: "#2de0c0", A: "#ffd35c", Y: "#2de0c0", G: "#9c98ab" };
+  const PAL = { a: "#995b26", b: "#2a1809", c: "#583216", d: "#734b25", e: "#d4af90", f: "#b28d64", g: "#cc9d64", h: "#9d7356", i: "#605363", j: "#e6cba6", k: "#ae9791", l: "#c77230", m: "#e4e4e3", n: "#8f798d", o: "#ebca63", p: "#ae8633" };
   const sprite = $("#sprite"), sctx = sprite.getContext("2d");
   function drawSprite(blink) {
-    sctx.clearRect(0, 0, 16, 16);
+    sctx.clearRect(0, 0, 32, 32);
     MAP.forEach((row, y) => [...row].forEach((p, x) => {
       const k = blink && p === "C" ? "K" : p;
       if (PAL[k]) { sctx.fillStyle = PAL[k]; sctx.fillRect(x, y, 1, 1); }
