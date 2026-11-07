@@ -381,7 +381,9 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
 .post .more { font-family: var(--display); font-size: 11px; color: var(--muted); margin-top: auto; }
 .post:hover .more { color: var(--hot); }
 .blog-note { font-family: var(--mono); font-size: 14px; color: var(--muted); margin: 0; }
-.post-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; color: #c9c5d8; max-height: 52vh; overflow-y: auto; padding-right: 4px; }
+.post-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: 15px; line-height: 1.7; color: #c9c5d8; max-height: 70vh; overflow-y: auto; padding-right: 4px; }
+#blogDlg { max-width: min(1000px, calc(100% - 32px)); }
+#blogDlg .screen-in { max-height: 88vh; }
 
 /* Patch chip */
 .patch { font-family: var(--mono); font-size: 11px; margin-left: 12px; padding: 0 6px; border-radius: 4px; border: 1px solid #4f4b63; color: #9c98ab; background: transparent; cursor: pointer; line-height: 1.6; align-self: center; }
@@ -663,7 +665,7 @@ footer kbd { font-family: var(--mono); font-size: 11px; padding: 1px 5px; border
     <div class="wrap">
       <p class="eyebrow">SIDE QUEST · BLOG</p>
       <h2 class="sc-h">Field notes</h2>
-      <p class="sub">Write-ups from the lab: analysis walkthroughs, tooling notes and what I learned on samples and labs.</p>
+      <p class="sub">Write-ups on certifications: exam experiences, study plans and what actually mattered on the day.</p>
       <div class="posts" id="posts" aria-live="polite"><p class="blog-note">loading the log…</p></div>
     </div>
   </section>
